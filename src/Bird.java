@@ -12,7 +12,7 @@ public class Bird {
     boolean hitBoundary = false;
     boolean isLaunched = false;
 
-    double mass = 1;
+    double mass = 0.00343;
     Physics physics = new Physics(mass);
 
     // Чтобы замедлить симуляции и было понятно как летит, а не когда по настоящему скорости
