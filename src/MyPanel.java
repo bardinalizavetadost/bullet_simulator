@@ -15,9 +15,6 @@ public class MyPanel extends JPanel {
     JTextField angleField, speedField;
     JLabel infoLabel;
 
-    ArrayList<Target> targets = new ArrayList<>();
-    ArrayList<Wall> walls = new ArrayList<>();
-
     int targetScore = 0;
     double startAngle = 45;
     double startSpeed = 10;
@@ -88,16 +85,6 @@ public class MyPanel extends JPanel {
         infoLabel.setBounds(10, 140, 600, 200);
         add(infoLabel);
 
-        // Создаем стены
-        walls.add(new Wall(400, GROUND_LEVEL_PIXELS - 130, 50, 150));
-        walls.add(new Wall(500, GROUND_LEVEL_PIXELS - 130, 50, 150));
-        walls.add(new Wall(400, GROUND_LEVEL_PIXELS - 130, 150, 60));
-
-        // Создаем мишени
-        targets.add(new Target(300, GROUND_LEVEL_PIXELS - 100));
-        targets.add(new Target(600, GROUND_LEVEL_PIXELS - 150));
-        targets.add(new Target(200, GROUND_LEVEL_PIXELS - 200));
-
         // мышь и клава
         addKeyListener(new KeyAdapter() {
             @Override
@@ -149,10 +136,6 @@ public class MyPanel extends JPanel {
 
     private void resetSimulation() {
         bird.reset();
-        for (Target t : targets)
-            t.active = true;
-
-        targetScore = 0;
         showMouseAngle = false;
         updateAngleSpeedFieldsFromCurrent();
         repaint();
@@ -160,7 +143,6 @@ public class MyPanel extends JPanel {
 
     private void updateSimulation() {
         bird.update();
-        bird.checkHitWalls(walls);
         repaint();
 
         // Если птица врезалась в границу экрана
@@ -170,14 +152,6 @@ public class MyPanel extends JPanel {
             resetTimer.setRepeats(false);
             resetTimer.start();
             return;
-        }
-
-        // Проверяем столкновения с мишенями
-        for (Target target : targets) {
-            if (bird.checkCollision(target)) {
-                target.active = false;
-                targetScore++;
-            }
         }
 
         // Обновляем информацию
@@ -218,17 +192,9 @@ public class MyPanel extends JPanel {
         g.setColor(Color.GREEN);
         g.fillRect(0, GROUND_LEVEL_PIXELS, getWidth(), 20);
 
-        // Рисуем стены
-        for (Wall wall : walls)
-            wall.paint(g);
-
-        // Рисуем мишени
-        for (Target target : targets)
-            target.paint(g);
-
         // Рисуем предварительную траекторию если птица не запущена и не врезалась
         if (!bird.isLaunched && !bird.hitBoundary)
-            trajectory.predictAndDraw(g, startXm, startYm, startAngle, startSpeed, walls);
+            trajectory.predictAndDraw(g, startXm, startYm, startAngle, startSpeed);
 
         // Рисуем птицу (если она не врезалась в границу)
         if (!bird.hitBoundary) {

@@ -9,7 +9,7 @@ public class TrajectoryDrawer {
 
     public void predictAndDraw(Graphics g,
                                double positionXm, double positionYm,
-                               double startAngle, double startSpeed, List<Wall> walls) {
+                               double startAngle, double startSpeed) {
 
         Bird demoBird = new Bird(positionXm, positionYm);
         demoBird.launch(startSpeed, startAngle);
@@ -25,8 +25,6 @@ public class TrajectoryDrawer {
             demoBird.updatePositionFromPhysics();
 
             Point pos = demoBird.physics.getPosition();
-            if (demoBird.checkHitWalls(walls))
-                hits.add(pos);
             points.add(pos);
         }
 

@@ -86,19 +86,6 @@ public class Bird {
 
         checkHitBoundary();
     }
-
-    public boolean checkHitWalls(List<Wall> walls) {
-        if (!this.isLaunched) return false;
-
-        // Проверяем столкновения со стенами - отскок
-        for (Wall wall : walls) {
-            if (handleWallCollision(wall)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     public void checkHitBoundary() {
         if (!this.isLaunched) return;
 
@@ -111,48 +98,5 @@ public class Bird {
             hitBoundary = true;
             isLaunched = false;
         }
-    }
-
-    public boolean handleWallCollision(Wall wall) {
-        if (hitBoundary) return false;
-
-        // центр птицы
-        double birdCenterX = x + DIAMETER_PX / 2.0;
-        double birdCenterY = y + DIAMETER_PX / 2.0;
-        // центр стены
-        double wallCenterX = wall.x + wall.width / 2.0;
-        double wallCenterY = wall.y + wall.height / 2.0;
-
-        // Определяем, с какой стороны произошло столкновение
-        double dx = birdCenterX - wallCenterX;
-        double dy = birdCenterY - wallCenterY;
-
-        // расстояние для столкновения
-        double halfWidthSumPx = (DIAMETER_PX + wall.width) / 2.0;
-        double halfHeightSumPx = (DIAMETER_PX + wall.height) / 2.0;
-
-        // Определяем перекрытие по осям
-        double overlapXpx = halfWidthSumPx - Math.abs(dx);
-        double overlapYpx = halfHeightSumPx - Math.abs(dy);
-
-        // проверяем ударилось ли
-        if (overlapXpx < 0 || overlapYpx < 0) return false;
-
-        if (overlapXpx < overlapYpx) {
-            physics.hitX(); // Столкновение с боковой стороной (лево/право)
-        } else {
-            physics.hitY(); // Столкновение с верхней/нижней стороной
-        }
-
-        return true;
-    }
-
-    boolean checkCollision(Target target) {
-        if (!target.active) return false;
-        // Проверка столкновения между птицей и мишенью
-        double dx = (x + DIAMETER_PX / 2.0) - (target.x + target.diameter / 2.0);
-        double dy = (y + DIAMETER_PX / 2.0) - (target.y + target.diameter / 2.0);
-        double distance = Math.sqrt(dx * dx + dy * dy);
-        return distance <= (DIAMETER_PX / 2.0 + target.diameter / 2.0);
     }
 }

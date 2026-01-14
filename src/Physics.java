@@ -60,18 +60,6 @@ public class Physics {
         maxHeight = Math.max(maxHeight, positionY);
     }
 
-    // упругий удар в стену по оси X
-    public void hitX() {
-        velocityX *= -1;
-        positionX += 0.3 * Math.signum(velocityX);  // заранее оттолкнем чтобы было меньше ложных столкновений
-    }
-
-    // упругий удар в стену по оси Y
-    public void hitY() {
-        velocityY *= -1;
-        positionY += 0.3 * Math.signum(velocityY);
-    }
-
     public double getVelocity() {
         return Math.sqrt(velocityX * velocityX + velocityY * velocityY);
     }

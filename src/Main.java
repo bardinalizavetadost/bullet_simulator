@@ -9,7 +9,7 @@ public class Main {
         JFrame frame = new JFrame();
         frame.setSize(MyPanel.WIDTH_PIXELS, MyPanel.HEIGHT_PIXELS);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setTitle("простая модель");
+        frame.setTitle("Не простая модель");
         frame.add(panel);
         frame.setVisible(true);
     }
