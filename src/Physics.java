@@ -38,10 +38,11 @@ public class Physics {
     private void updateForce() {
         double p=1.29;
         double SD=0.147;
-        double S=3.73;
+        double d= 5.45;
+        double S=3.14*(d/1000)*(d/1000)/4;
         double BC=0.185;
-        forceX = -0.5* BC*S*p*velocityX* getVelocity();
-        forceY = -0.5* BC*S*p*velocityY* getVelocity()-9.81 * massKg;
+        forceX = -0.5* BC*S*p*velocityX* getVelocity()/1000;
+        forceY = -0.5* BC*S*p*velocityY* getVelocity()/1000-9.81 * massKg;
     }
 
     private void updateAcceleration() {

@@ -255,7 +255,8 @@ public class MyPanel extends JPanel {
             int mouseY = e.getY();
 
             startAngle = calculateAngleFromClick(mouseX, mouseY);
-            startSpeed = Math.sqrt(Math.pow(mouseY - GROUND_LEVEL_PIXELS, 2) + Math.pow(mouseX, 2)) / PIXELS_IN_METER;
+            startSpeed = Math.sqrt(Math.pow(mouseY - GROUND_LEVEL_PIXELS, 2) + Math.pow(mouseX, 2)) / PIXELS_IN_METER ;
+
 
             updateAngleSpeedFieldsFromCurrent();
             repaint();
