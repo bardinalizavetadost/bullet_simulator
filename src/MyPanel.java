@@ -1,28 +1,31 @@
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
-import java.util.ArrayList;
 import java.util.Locale;
 
 public class MyPanel extends JPanel {
-    public static final double PIXELS_IN_METER = 10;
-    public static final int GROUND_LEVEL_PIXELS = 500;
+    public static final double PIXELS_IN_METER = 1;
+    public static final double PIXELS_IN_METERPERSECOND = 1;
+
     public static final int HEIGHT_PIXELS = 600;
     public static final int WIDTH_PIXELS = 800;
-    public static final double MAX_HEIGHT_METERS = GROUND_LEVEL_PIXELS / PIXELS_IN_METER;
-    public static final double MAX_WIDTH_METERS = WIDTH_PIXELS / PIXELS_IN_METER;
+
+    public static final int PADDING_PX = 30;
+    public static final int PHYSICS_HEIGHT = HEIGHT_PIXELS - 2 * PADDING_PX;
+    public static final double MAX_HEIGHT_METERS = PHYSICS_HEIGHT / PIXELS_IN_METER;
+    public static final int PHYSICS_WIDTH = WIDTH_PIXELS - PADDING_PX;
+    public static final double MAX_WIDTH_METERS = PHYSICS_WIDTH / PIXELS_IN_METER;
 
     JTextField angleField, speedField;
     JLabel infoLabel;
 
-    int targetScore = 0;
     double startAngle = 45;
     double startSpeed = 10;
 
     boolean showMouseAngle = false;
 
-    double startXm = 5.0;
-    double startYm = Bird.DIAMETER_PX / MyPanel.PIXELS_IN_METER / 2.0;
+    double startXm = 0;
+    double startYm = 100;
     Bird bird = new Bird(startXm, startYm);
 
     TrajectoryDrawer trajectory = new TrajectoryDrawer();
@@ -38,7 +41,7 @@ public class MyPanel extends JPanel {
         JPanel inputPanel = new JPanel();
 
         inputPanel.setBackground(new Color(240, 240, 240));
-        inputPanel.setBounds(10, 10, 350, 120);
+        inputPanel.setBounds(100, 10, 350, 120);
         inputPanel.setLayout(new GridLayout(4, 2, 5, 5));
 
         inputPanel.add(new JLabel("Угол (град):"));
@@ -70,10 +73,10 @@ public class MyPanel extends JPanel {
 
         JLabel timeLabel = new JLabel("замедление времени x1");
         inputPanel.add(timeLabel);
-        JSlider timeSlider = new JSlider(JSlider.HORIZONTAL, 1, 20, (int)Bird.slowTimeBy);
+        JSlider timeSlider = new JSlider(JSlider.HORIZONTAL, 1, 20, (int) Bird.slowTimeBy);
         timeSlider.addChangeListener(e -> {
             Bird.slowTimeBy = timeSlider.getValue();
-            timeLabel.setText("замедление времени x%d".formatted((int)Bird.slowTimeBy));
+            timeLabel.setText("замедление времени x%d".formatted((int) Bird.slowTimeBy));
         });
         inputPanel.add(timeSlider);
 
@@ -82,7 +85,8 @@ public class MyPanel extends JPanel {
 
         // Панель информации
         infoLabel = new JLabel("");
-        infoLabel.setBounds(10, 140, 600, 200);
+        infoLabel.setVerticalAlignment(SwingConstants.TOP);
+        infoLabel.setBounds(450, 10, 600, 200);
         add(infoLabel);
 
         // мышь и клава
@@ -121,6 +125,8 @@ public class MyPanel extends JPanel {
     private void updateAngleSpeedFieldsFromCurrent() {
         angleField.setText(String.format(Locale.ENGLISH, "%.1f", startAngle));
         speedField.setText(String.format(Locale.ENGLISH, "%.1f", startSpeed));
+        bird.velocity0.x = startSpeed * Math.cos(Math.toRadians(startAngle));
+        bird.velocity0.y = startSpeed * Math.sin(Math.toRadians(startAngle));
     }
 
     private void updateCurrentAngleSpeedFromScreen() {
@@ -142,6 +148,7 @@ public class MyPanel extends JPanel {
     }
 
     private void updateSimulation() {
+
         bird.update();
         repaint();
 
@@ -166,19 +173,19 @@ public class MyPanel extends JPanel {
                         Параметры:<br>
                         Начальные: скорость=%.1fm/s, угол скорости=%.1f°<br>
                         Текущие: скорость=%.1fm/s, угол скорости=%.1f°<br>
-                        Макс.высота=%.1fm, Путь=%.1fm, Перемещение=%.1fm<br>
+                        Путь=%.1fm, Перемещение=%.1fm<br>
+                        Макс.высота=%.1fm, Макс.дальность=%.1fm<br>
                         Время=%.3fc<br>
-                        Попадания=%d
                         </html>""",
                 startSpeed,
                 startAngle,
                 bird.physics.getVelocity(),
-                bird.physics.getVelocityAngle(),
+                bird.physics.getVelocityAngleDeg(),
                 bird.physics.maxHeight,
+                bird.physics.maxDistance,
                 bird.physics.totalPathLength,
                 bird.physics.totalDistance,
-                bird.isLaunched ? Time.seconds() - startTimeSec : 0,
-                targetScore
+                bird.isLaunched ? (Time.seconds() - startTimeSec) / Bird.slowTimeBy : 0
         ));
     }
 
@@ -186,15 +193,18 @@ public class MyPanel extends JPanel {
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
 
-        // Рисуем землю
-        g.setColor(new Color(139, 69, 19));
-        g.fillRect(0, GROUND_LEVEL_PIXELS, getWidth(), 100);
-        g.setColor(Color.GREEN);
-        g.fillRect(0, GROUND_LEVEL_PIXELS, getWidth(), 20);
+        Ruller.paintRulerH(g);
+        Ruller.paintRulerV(g);
 
         // Рисуем предварительную траекторию если птица не запущена и не врезалась
-        if (!bird.isLaunched && !bird.hitBoundary)
+        if (!bird.isLaunched && !bird.hitBoundary) {
+            trajectory.clearHistory();
             trajectory.predictAndDraw(g, startXm, startYm, startAngle, startSpeed);
+        }
+
+        if (bird.isLaunched && !bird.hitBoundary) {
+            trajectory.drawHistory(g, bird);
+        }
 
         // Рисуем птицу (если она не врезалась в границу)
         if (!bird.hitBoundary) {
@@ -219,13 +229,8 @@ public class MyPanel extends JPanel {
 
     // Метод для вычисления угла по координатам клика мыши
     private double calculateAngleFromClick(int mouseX, int mouseY) {
-        // Получаем центр птицы (стартовая позиция)
-        int birdCenterX = 50 + Bird.DIAMETER_PX / 2; // x = 50 пикселей от края
-        int birdCenterY = GROUND_LEVEL_PIXELS - Bird.DIAMETER_PX / 2; // На уровне земли
-
-        // Вычисляем разницу координат
-        double dx = mouseX - birdCenterX;
-        double dy = birdCenterY - mouseY; // Ось Y инвертирована (0 вверху)
+        double dx = screenXtoXMeters(mouseX) - startXm;
+        double dy = screenYtoYMeters(mouseY) - startYm;
 
         // Вычисляем угол в радианах с помощью Math.atan2
         // atan2 принимает (y, x) и возвращает угол от -PI до PI
@@ -253,13 +258,19 @@ public class MyPanel extends JPanel {
 
             int mouseX = e.getX();
             int mouseY = e.getY();
-
             startAngle = calculateAngleFromClick(mouseX, mouseY);
-            startSpeed = Math.sqrt(Math.pow(mouseY - GROUND_LEVEL_PIXELS, 2) + Math.pow(mouseX, 2)) / PIXELS_IN_METER ;
-
+            startSpeed = Math.sqrt(Math.pow(screenYtoYMeters(mouseY) - startYm, 2) + Math.pow(screenXtoXMeters(mouseX) - startXm, 2)) / Math.sqrt(PHYSICS_HEIGHT * PHYSICS_HEIGHT + PHYSICS_WIDTH * PHYSICS_WIDTH) * 900;
 
             updateAngleSpeedFieldsFromCurrent();
             repaint();
         }
+    }
+
+    public double screenXtoXMeters(int screenXpx) {
+        return (screenXpx - PADDING_PX) / PIXELS_IN_METER;
+    }
+
+    public double screenYtoYMeters(int screenYpx) {
+        return (PHYSICS_HEIGHT - screenYpx) / PIXELS_IN_METER;
     }
 }

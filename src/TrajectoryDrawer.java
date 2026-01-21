@@ -4,6 +4,8 @@ import java.util.List;
 
 public class TrajectoryDrawer {
 
+    ArrayList<Point> historyPoints = new ArrayList<>();
+
     public TrajectoryDrawer() {
     }
 
@@ -31,6 +33,15 @@ public class TrajectoryDrawer {
         drawTrack(g, points, hits);
     }
 
+    public void drawHistory(Graphics g, Bird b) {
+        historyPoints.add(b.physics.getPosition());
+        drawTrack(g, historyPoints, new ArrayList<>());
+    }
+
+    public void clearHistory() {
+        historyPoints.clear();
+    }
+
     void drawTrack(Graphics g, List<Point> points, List<Point> hits) {
         if (points.size() < 2) return;
 
@@ -38,11 +49,11 @@ public class TrajectoryDrawer {
         g2d.setColor(new Color(255, 100, 100, 150));
         g2d.setStroke(new BasicStroke(2, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
 
-        int prevX = points.getFirst().toScreenX() + Bird.DIAMETER_PX / 2;
-        int prevY = points.getFirst().toScreenY() + Bird.DIAMETER_PX / 2;
+        int prevX = points.getFirst().toScreenX();
+        int prevY = points.getFirst().toScreenY();
         for (Point p : points) {
-            int curX = p.toScreenX() + Bird.DIAMETER_PX / 2;
-            int curY = p.toScreenY() + Bird.DIAMETER_PX / 2;
+            int curY = p.toScreenY();
+            int curX = p.toScreenX();
             g2d.drawLine(prevX, prevY, curX, curY);
             prevX = curX;
             prevY = curY;

@@ -1,5 +1,5 @@
 import java.awt.*;
-import java.util.List;
+import java.awt.geom.Rectangle2D;
 
 public class Bird {
     static final int DIAMETER_PX = 30;
@@ -21,6 +21,8 @@ public class Bird {
     private int x;
     private int y;
 
+    Vector velocity0 = new Vector(1, 0);
+
     public Bird(double positionXMeters, double positionYMeters) {
         this.startXMeters = positionXMeters;
         this.startYMeters = positionYMeters;
@@ -33,23 +35,44 @@ public class Bird {
         physics.setup(startXMeters, startYMeters, 0, 0);
         updatePositionFromPhysics();
     }
+    private static final int BULLET_BODY_WIDTH = 25;
+    private static final int BULLET_BODY_HEIGHT = 15;
+    private static final int BULLET_NOSE_LENGTH = 10;
 
     public void paint(Graphics g) {
-        // Если птица улетела за экран, не рисуем ее
         if (hitBoundary) return;
 
-        // Птица
-        g.setColor(Color.YELLOW);
-        g.fillOval(x, y, DIAMETER_PX, DIAMETER_PX);
-        g.setColor(Color.BLACK);
-        g.fillOval(x + DIAMETER_PX / 2 - 3, y + DIAMETER_PX / 3, 4, 4);
-        g.fillOval(x + DIAMETER_PX / 2 + 3, y + DIAMETER_PX / 3, 4, 4);
+        Graphics2D g2d = (Graphics2D) g.create();
+        g2d.translate(x, y);
 
-        // Рисуем клюв
-        g.setColor(Color.ORANGE);
-        int[] xPoints = {x + DIAMETER_PX, x + DIAMETER_PX + 10, x + DIAMETER_PX};
-        int[] yPoints = {y + DIAMETER_PX / 2, y + DIAMETER_PX / 2, y + DIAMETER_PX / 2 + 5};
-        g.fillPolygon(xPoints, yPoints, 3);
+        if (isLaunched) {
+            g2d.rotate(-physics.velocity.angleRad());
+        } else {
+            g2d.rotate(-velocity0.angleRad());
+        }
+
+        Rectangle2D.Double body = new Rectangle2D.Double(
+                -BULLET_BODY_WIDTH,
+                -BULLET_BODY_HEIGHT / 2.0,
+                BULLET_BODY_WIDTH,
+                BULLET_BODY_HEIGHT
+        );
+        g2d.setColor(Color.DARK_GRAY);
+        g2d.fill(body);
+        g2d.setColor(Color.BLACK);
+        g2d.draw(body);
+
+        int[] noseX = {0, BULLET_NOSE_LENGTH, 0};
+        int[] noseY = {-BULLET_BODY_HEIGHT / 2, 0, BULLET_BODY_HEIGHT / 2};
+
+        g2d.setColor(Color.BLACK);
+        g2d.fillPolygon(noseX, noseY, 3);
+        g2d.drawPolygon(noseX, noseY, 3);
+        g2d.dispose();
+
+        if (isLaunched) {
+            ForceVisualizer.drawForceVectors(g, physics.forces, physics.velocity, x, y);
+        }
     }
 
     public void launch(double speed, double angle) {
@@ -86,13 +109,14 @@ public class Bird {
 
         checkHitBoundary();
     }
+
     public void checkHitBoundary() {
         if (!this.isLaunched) return;
 
         // проверка столкновений с землей или потолком
-        boolean hit = physics.positionY < 0 || physics.positionY > MyPanel.MAX_HEIGHT_METERS;
+        boolean hit = physics.position.y < 0 || physics.position.y > MyPanel.MAX_HEIGHT_METERS;
         // Проверка столкновения с вертикальной границей экрана
-        hit |= physics.positionX < 0 || physics.positionX > MyPanel.MAX_WIDTH_METERS;
+        hit |= physics.position.x < 0 || physics.position.x > MyPanel.MAX_WIDTH_METERS;
 
         if (hit) {
             hitBoundary = true;
