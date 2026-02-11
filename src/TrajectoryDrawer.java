@@ -34,8 +34,11 @@ public class TrajectoryDrawer {
     }
 
     public void drawHistory(Graphics g, Bird b) {
-        historyPoints.add(b.physics.getPosition());
-        drawTrack(g, historyPoints, new ArrayList<>());
+        ArrayList<Point> pts = new ArrayList<>();
+        for(BirdState p : b.history) {
+            pts.add(new Point(p.position().x, p.position().y));
+        }
+        drawTrack(g, pts, new ArrayList<>());
     }
 
     public void clearHistory() {

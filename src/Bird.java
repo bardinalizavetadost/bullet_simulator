@@ -1,27 +1,27 @@
 import java.awt.*;
 import java.awt.geom.Rectangle2D;
+import java.util.ArrayList;
 
 public class Bird {
     static final int DIAMETER_PX = 30;
-
-    double startXMeters;
-    double startYMeters;
-
-    double lastTimeSec = 0;
-
-    boolean hitBoundary = false;
-    boolean isLaunched = false;
-
-    double mass = 0.00343;
-    Physics physics = new Physics(mass);
-
+    private static final int BULLET_BODY_WIDTH = 25;
+    private static final int BULLET_BODY_HEIGHT = 15;
+    private static final int BULLET_NOSE_LENGTH = 10;
     // Чтобы замедлить симуляции и было понятно как летит, а не когда по настоящему скорости
     public static double slowTimeBy = 1;
-
+    double startXMeters;
+    double startYMeters;
+    double lastTimeSec = 0;
+    boolean hitBoundary = false;
+    boolean isLaunched = false;
+    double mass = 0.00343;
+    Physics physics = new Physics(mass);
+    double currentTime = 0;
+    double lastDumpTime = 0;
+    Vector velocity0 = new Vector(1, 0);
+    ArrayList<BirdState> history = new ArrayList<>();
     private int x;
     private int y;
-
-    Vector velocity0 = new Vector(1, 0);
 
     public Bird(double positionXMeters, double positionYMeters) {
         this.startXMeters = positionXMeters;
@@ -32,12 +32,10 @@ public class Bird {
     public void reset() {
         isLaunched = false;
         hitBoundary = false;
+        history.clear();
         physics.setup(startXMeters, startYMeters, 0, 0);
         updatePositionFromPhysics();
     }
-    private static final int BULLET_BODY_WIDTH = 25;
-    private static final int BULLET_BODY_HEIGHT = 15;
-    private static final int BULLET_NOSE_LENGTH = 10;
 
     public void paint(Graphics g) {
         if (hitBoundary) return;
@@ -88,6 +86,8 @@ public class Bird {
         hitBoundary = false;
 
         lastTimeSec = Time.seconds();
+        currentTime = 0;
+        lastDumpTime = 0;
     }
 
     public void update() {
@@ -97,6 +97,11 @@ public class Bird {
         double time = Time.seconds();
         double delta = (time - lastTimeSec) / slowTimeBy;
         lastTimeSec = time;
+        if (delta > 0.1) return;
+
+        dump();
+
+        currentTime += delta;
         physics.update(delta);
 
         updatePositionFromPhysics();
@@ -122,5 +127,42 @@ public class Bird {
             hitBoundary = true;
             isLaunched = false;
         }
+    }
+
+    public void dump() {
+        if ((currentTime - lastDumpTime) > 0.05) {
+            history.add(new BirdState(
+                    currentTime,
+                    physics.position,
+                    physics.velocity
+            ));
+            lastDumpTime = currentTime;
+        }
+    }
+
+    public void resetToTime(double time) {
+        if (history.isEmpty()) return;
+        BirdState nearestState = history.getFirst();
+        double best = Double.MAX_VALUE;
+        for (BirdState state : history) {
+            double dt = Math.abs(state.time() - time);
+            if (dt < best) {
+                best = dt;
+                nearestState = state;
+            }
+        }
+        physics.position = nearestState.position();
+        physics.velocity = nearestState.velocity();
+        currentTime = nearestState.time();
+        lastDumpTime = currentTime;
+        updatePositionFromPhysics();
+    }
+
+    void dropFutureHistory() {
+        ArrayList<BirdState> ok = new ArrayList<>();
+        for (BirdState state : history) {
+            if (state.time() < currentTime) ok.add(state);
+        }
+        history.retainAll(ok);
     }
 }

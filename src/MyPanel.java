@@ -1,6 +1,7 @@
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
+import java.util.Hashtable;
 import java.util.Locale;
 
 public class MyPanel extends JPanel {
@@ -15,6 +16,8 @@ public class MyPanel extends JPanel {
     public static final double MAX_HEIGHT_METERS = PHYSICS_HEIGHT / PIXELS_IN_METER;
     public static final int PHYSICS_WIDTH = WIDTH_PIXELS - PADDING_PX;
     public static final double MAX_WIDTH_METERS = PHYSICS_WIDTH / PIXELS_IN_METER;
+    private final JSlider playbackSlider;
+    private final JButton launchButton;
 
     JTextField angleField, speedField;
     JLabel infoLabel;
@@ -31,7 +34,9 @@ public class MyPanel extends JPanel {
     TrajectoryDrawer trajectory = new TrajectoryDrawer();
 
     boolean useMouse = true;
-    private double startTimeSec = 0;
+
+    boolean paused = false;
+    double maxTime = 0;
 
     public MyPanel() {
         setBackground(Color.CYAN);
@@ -57,7 +62,7 @@ public class MyPanel extends JPanel {
         speedField.addActionListener(e -> updateCurrentAngleSpeedFromScreen());
         inputPanel.add(speedField);
 
-        JButton launchButton = new JButton("Запустить");
+        launchButton = new JButton("Запустить");
         launchButton.addActionListener(e -> launchBird());
         inputPanel.add(launchButton);
 
@@ -73,7 +78,7 @@ public class MyPanel extends JPanel {
 
         JLabel timeLabel = new JLabel("замедление времени x1");
         inputPanel.add(timeLabel);
-        JSlider timeSlider = new JSlider(JSlider.HORIZONTAL, 1, 20, (int) Bird.slowTimeBy);
+        JSlider timeSlider = new JSlider(JSlider.HORIZONTAL, 1, 10, (int) Bird.slowTimeBy);
         timeSlider.addChangeListener(e -> {
             Bird.slowTimeBy = timeSlider.getValue();
             timeLabel.setText("замедление времени x%d".formatted((int) Bird.slowTimeBy));
@@ -82,6 +87,15 @@ public class MyPanel extends JPanel {
 
         inputPanel.setLayout(new GridLayout(0, 2));
         add(inputPanel);
+
+        playbackSlider = new JSlider(JSlider.HORIZONTAL, 0, 10, 1);
+        playbackSlider.setBounds(50, 150, 400, 50);
+        add(playbackSlider);
+        playbackSlider.addChangeListener(e -> {
+            if(paused) {
+                bird.resetToTime(playbackSlider.getValue() / (double) 100 * maxTime);
+            }
+        });
 
         // Панель информации
         infoLabel = new JLabel("");
@@ -117,9 +131,10 @@ public class MyPanel extends JPanel {
 
     private void launchBird() {
         if (bird.isLaunched || bird.hitBoundary) return;
+
         bird.launch(startSpeed, startAngle);
         showMouseAngle = false;
-        startTimeSec = Time.seconds();
+        paused = false;
     }
 
     private void updateAngleSpeedFieldsFromCurrent() {
@@ -143,25 +158,39 @@ public class MyPanel extends JPanel {
     private void resetSimulation() {
         bird.reset();
         showMouseAngle = false;
+        paused = false;
         updateAngleSpeedFieldsFromCurrent();
         repaint();
     }
 
-    private void updateSimulation() {
+    private void updateTimeSlider() {
+        int steps = 20;
+        int maxval = 100;
+        playbackSlider.setMinimum(0);
+        playbackSlider.setMaximum(maxval);
+        playbackSlider.setValue(maxval);
+        playbackSlider.setMajorTickSpacing(steps);
+        playbackSlider.setMinorTickSpacing(steps / 10);
+        playbackSlider.setPaintTicks(true);
+        playbackSlider.setPaintLabels(true);
 
-        bird.update();
-        repaint();
-
-        // Если птица врезалась в границу экрана
-        if (bird.hitBoundary) {
-            // Автоматический сброс через небольшую задержку
-            Timer resetTimer = new Timer(1500, e -> resetSimulation());
-            resetTimer.setRepeats(false);
-            resetTimer.start();
-            return;
+        double factor = maxTime / (double) maxval;
+        Hashtable<Integer, JLabel> labelTable = new Hashtable<>();
+        for (int i = 0; i <= maxval; i += steps) {
+            double value = i * factor;
+            labelTable.put(i, new JLabel(String.format("%.1fc", value)));
         }
+        playbackSlider.setLabelTable(labelTable);
+    }
 
-        // Обновляем информацию
+    private void updateSimulation() {
+        if (!paused) {
+            bird.update();
+            maxTime = bird.currentTime;
+        }
+        playbackSlider.setVisible(paused);
+        launchButton.setEnabled(!paused && !bird.isLaunched && !bird.hitBoundary);
+        grabFocus();
         updateInfo();
         repaint();
     }
@@ -173,19 +202,21 @@ public class MyPanel extends JPanel {
                         Параметры:<br>
                         Начальные: скорость=%.1fm/s, угол скорости=%.1f°<br>
                         Текущие: скорость=%.1fm/s, угол скорости=%.1f°<br>
+                        Координаты: X=%.1fm Y=%.1fm<br>
                         Путь=%.1fm, Перемещение=%.1fm<br>
-                        Макс.высота=%.1fm, Макс.дальность=%.1fm<br>
-                        Время=%.3fc<br>
+                        Макс.высота=%.1fm, Макс.дальность=%.1fm<br><br><br>
+                        Время полета %.3fc<br>
                         </html>""",
                 startSpeed,
                 startAngle,
                 bird.physics.getVelocity(),
                 bird.physics.getVelocityAngleDeg(),
-                bird.physics.maxHeight,
-                bird.physics.maxDistance,
+                bird.physics.position.x, bird.physics.position.y,
                 bird.physics.totalPathLength,
                 bird.physics.totalDistance,
-                bird.isLaunched ? (Time.seconds() - startTimeSec) / Bird.slowTimeBy : 0
+                bird.physics.maxHeight,
+                bird.physics.maxDistance,
+                bird.currentTime
         ));
     }
 
@@ -215,17 +246,32 @@ public class MyPanel extends JPanel {
             g.setFont(new Font("Arial", Font.BOLD, 24));
             g.drawString("СТОЛКНОВЕНИЕ!", getWidth() / 2, getHeight() / 2);
             g.setFont(new Font("Arial", Font.PLAIN, 18));
-            g.drawString("Возврат через 1 секунд...", getWidth() / 2, getHeight() / 2 + 50);
+            g.drawString("нажмите 'сброс' для перезапуска", getWidth() / 2, getHeight() / 2 + 50);
+        }
+
+        if (paused) {
+            g.setColor(Color.BLUE);
+            g.setFont(new Font("Arial", Font.BOLD, 24));
+            g.drawString("пауза", getWidth() / 2, getHeight() / 2);
         }
     }
 
     // Методы KeyListener
     public void onKeyPressed(KeyEvent e) {
-        if (e.getKeyCode() == KeyEvent.VK_SPACE) {
+        if (bird.hitBoundary) return;
+        // System.out.println(e.paramString());
+        if (e.getKeyChar() == 'p' && bird.isLaunched) {
+            paused = !paused;
+            if (paused) {
+                updateTimeSlider();
+            } else {
+                bird.dropFutureHistory();
+            }
+        }
+        if (e.getKeyChar() == 's' && !bird.isLaunched) {
             launchBird();
         }
     }
-
 
     // Метод для вычисления угла по координатам клика мыши
     private double calculateAngleFromClick(int mouseX, int mouseY) {

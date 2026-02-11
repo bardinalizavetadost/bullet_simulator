@@ -13,7 +13,9 @@ public class Ruller {
     private static final int TEXT_OFFSET = 10;
     private static final Font TICK_FONT = new Font("SansSerif", Font.BOLD, 12);
 
-    
+    private static final String LABEL_X = "(м.)";
+    private static final String LABEL_Y = "(м.)";
+
     public static void paintRulerV(Graphics g) {
         g.setColor(RULER_BG);
         g.fillRect(0, 0, MyPanel.PADDING_PX, MyPanel.PHYSICS_HEIGHT);
@@ -48,6 +50,7 @@ public class Ruller {
 
             g.drawString(label, labelX, labelY);
         }
+        g.drawString(LABEL_Y, 0, 20);
     }
 
     public static void paintRulerH(Graphics g) {
@@ -85,5 +88,6 @@ public class Ruller {
 
             g.drawString(label, labelX, labelY);
         }
+        g.drawString(LABEL_X, MyPanel.PHYSICS_WIDTH - 10, MyPanel.PHYSICS_HEIGHT + 20);
     }
 }
