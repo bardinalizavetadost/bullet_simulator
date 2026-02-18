@@ -84,13 +84,25 @@ public class MyPanel extends JPanel {
         infoLabel.setBounds(450, 10, 600, 200);
         add(infoLabel);
 
-        // мышь и клава
-        addKeyListener(new KeyAdapter() {
-            @Override
-            public void keyTyped(KeyEvent e) {
-                onKeyPressed(e);
-            }
-        });
+        KeyboardFocusManager.getCurrentKeyboardFocusManager()
+                .addKeyEventDispatcher(e -> {
+                    if (e.getID() == KeyEvent.KEY_PRESSED) {
+                        if (bird.hitBoundary) return false;
+                        if (e.getKeyChar() == 'p' && bird.isLaunched) {
+                            paused = !paused;
+                            if (paused) {
+                                updateTimeSlider();
+                            } else {
+                                bird.dropFutureHistory();
+                            }
+                        }
+                        if (e.getKeyChar() == 's' && !bird.isLaunched) {
+                            launchBird();
+                        }
+                    }
+                    return false;
+                });
+
         addMouseMotionListener(new MouseMotionAdapter() {
             @Override
             public void mouseMoved(MouseEvent e) {
@@ -156,7 +168,7 @@ public class MyPanel extends JPanel {
             maxTime = bird.currentTime;
         }
         playbackSlider.setVisible(paused);
-        grabFocus();
+//        grabFocus();
         updateInfo();
         repaint();
     }
@@ -229,23 +241,6 @@ public class MyPanel extends JPanel {
             g.setColor(Color.BLUE);
             g.setFont(new Font("Arial", Font.BOLD, 24));
             g.drawString("пауза", getWidth() / 2, getHeight() / 2);
-        }
-    }
-
-    // Методы KeyListener
-    public void onKeyPressed(KeyEvent e) {
-        if (bird.hitBoundary) return;
-        // System.out.println(e.paramString());
-        if (e.getKeyChar() == 'p' && bird.isLaunched) {
-            paused = !paused;
-            if (paused) {
-                updateTimeSlider();
-            } else {
-                bird.dropFutureHistory();
-            }
-        }
-        if (e.getKeyChar() == 's' && !bird.isLaunched) {
-            launchBird();
         }
     }
 

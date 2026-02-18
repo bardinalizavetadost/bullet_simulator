@@ -1,13 +1,18 @@
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.border.TitledBorder;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import java.awt.*;
 import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
+import java.util.Locale;
 
 public class PhyConfigDialog extends JDialog {
     private final PhyConfig config;
-    private final DecimalFormat df2 = new DecimalFormat("0.00");
-    private final DecimalFormat df3 = new DecimalFormat("0.000");
+    private final DecimalFormatSymbols dfs = DecimalFormatSymbols.getInstance(Locale.ENGLISH);
+    private final DecimalFormat df2 = new DecimalFormat("0.00", dfs);
+    private final DecimalFormat df3 = new DecimalFormat("0.000", dfs);
 
     private JTextField tempField;
     private JTextField pressureField;
@@ -51,6 +56,10 @@ public class PhyConfigDialog extends JDialog {
         closeButton.addActionListener(e -> dispose());
         buttonPanel.add(closeButton);
 
+        JButton saveButton = new JButton("Применить");
+        saveButton.addActionListener(e -> updateConfig());
+        buttonPanel.add(saveButton);
+
         add(mainPanel, BorderLayout.CENTER);
         add(buttonPanel, BorderLayout.SOUTH);
 
@@ -65,7 +74,8 @@ public class PhyConfigDialog extends JDialog {
         gbc.insets = new Insets(5, 5, 5, 5);
         gbc.anchor = GridBagConstraints.WEST;
 
-        gbc.gridx = 0; gbc.gridy = 0;
+        gbc.gridx = 0;
+        gbc.gridy = 0;
         panel.add(new JLabel("Температура:"), gbc);
 
         gbc.gridx = 1;
@@ -76,7 +86,8 @@ public class PhyConfigDialog extends JDialog {
         gbc.gridx = 2;
         panel.add(new JLabel("°C"), gbc);
 
-        gbc.gridx = 0; gbc.gridy = 1;
+        gbc.gridx = 0;
+        gbc.gridy = 1;
         panel.add(new JLabel("Давление:"), gbc);
 
         gbc.gridx = 1;
@@ -87,7 +98,8 @@ public class PhyConfigDialog extends JDialog {
         gbc.gridx = 2;
         panel.add(new JLabel("Па"), gbc);
 
-        gbc.gridx = 0; gbc.gridy = 2;
+        gbc.gridx = 0;
+        gbc.gridy = 2;
         panel.add(new JLabel("Плотность воздуха:"), gbc);
 
         gbc.gridx = 1;
@@ -109,7 +121,8 @@ public class PhyConfigDialog extends JDialog {
         gbc.insets = new Insets(5, 5, 5, 5);
         gbc.anchor = GridBagConstraints.WEST;
 
-        gbc.gridx = 0; gbc.gridy = 0;
+        gbc.gridx = 0;
+        gbc.gridy = 0;
         panel.add(new JLabel("Масса:"), gbc);
 
         gbc.gridx = 1;
@@ -120,7 +133,8 @@ public class PhyConfigDialog extends JDialog {
         gbc.gridx = 2;
         panel.add(new JLabel("г"), gbc);
 
-        gbc.gridx = 0; gbc.gridy = 1;
+        gbc.gridx = 0;
+        gbc.gridy = 1;
         panel.add(new JLabel("Калибр:"), gbc);
 
         gbc.gridx = 1;
@@ -131,7 +145,8 @@ public class PhyConfigDialog extends JDialog {
         gbc.gridx = 2;
         panel.add(new JLabel("мм"), gbc);
 
-        gbc.gridx = 0; gbc.gridy = 2;
+        gbc.gridx = 0;
+        gbc.gridy = 2;
         panel.add(new JLabel("Баллистический коэффициент:"), gbc);
 
         gbc.gridx = 1;
@@ -152,7 +167,8 @@ public class PhyConfigDialog extends JDialog {
         gbc.insets = new Insets(5, 5, 5, 5);
         gbc.anchor = GridBagConstraints.WEST;
 
-        gbc.gridx = 0; gbc.gridy = 0;
+        gbc.gridx = 0;
+        gbc.gridy = 0;
         panel.add(new JLabel("Начальная энергия:"), gbc);
 
         gbc.gridx = 1;
@@ -163,7 +179,8 @@ public class PhyConfigDialog extends JDialog {
         gbc.gridx = 2;
         panel.add(new JLabel("Дж"), gbc);
 
-        gbc.gridx = 0; gbc.gridy = 1;
+        gbc.gridx = 0;
+        gbc.gridy = 1;
         panel.add(new JLabel("Начальная скорость:"), gbc);
 
         gbc.gridx = 1;
@@ -175,7 +192,8 @@ public class PhyConfigDialog extends JDialog {
         gbc.gridx = 2;
         panel.add(new JLabel("м/с"), gbc);
 
-        gbc.gridx = 0; gbc.gridy = 2;
+        gbc.gridx = 0;
+        gbc.gridy = 2;
         panel.add(new JLabel("Угол запуска:"), gbc);
 
         gbc.gridx = 1;
@@ -222,14 +240,22 @@ public class PhyConfigDialog extends JDialog {
     }
 
     private double parseDouble(String text) {
-        return Double.parseDouble(text.trim());
+        return Double.parseDouble(text.trim().replace(",", "."));
     }
 
     private void addDocumentListener(JTextField field, Runnable action) {
-        field.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
-            public void changedUpdate(javax.swing.event.DocumentEvent e) { action.run(); }
-            public void removeUpdate(javax.swing.event.DocumentEvent e) { action.run(); }
-            public void insertUpdate(javax.swing.event.DocumentEvent e) { action.run(); }
+        field.getDocument().addDocumentListener(new DocumentListener() {
+            public void changedUpdate(DocumentEvent e) {
+                action.run();
+            }
+
+            public void removeUpdate(DocumentEvent e) {
+                action.run();
+            }
+
+            public void insertUpdate(DocumentEvent e) {
+                action.run();
+            }
         });
     }
 }
