@@ -17,19 +17,10 @@ public class MyPanel extends JPanel {
     public static final int PHYSICS_WIDTH = WIDTH_PIXELS - PADDING_PX;
     public static final double MAX_WIDTH_METERS = PHYSICS_WIDTH / PIXELS_IN_METER;
     private final JSlider playbackSlider;
-    private final JButton launchButton;
 
-    JTextField angleField, speedField;
     JLabel infoLabel;
 
-    double startAngle = 45;
-    double startSpeed = 10;
-
     boolean showMouseAngle = false;
-
-    double startXm = 0;
-    double startYm = 100;
-    Bird bird = new Bird(startXm, startYm);
 
     TrajectoryDrawer trajectory = new TrajectoryDrawer();
 
@@ -37,6 +28,9 @@ public class MyPanel extends JPanel {
 
     boolean paused = false;
     double maxTime = 0;
+
+    PhyConfig mainConfig = new PhyConfig();
+    Bird bird = new Bird(mainConfig);
 
     public MyPanel() {
         setBackground(Color.CYAN);
@@ -49,26 +43,13 @@ public class MyPanel extends JPanel {
         inputPanel.setBounds(100, 10, 350, 120);
         inputPanel.setLayout(new GridLayout(4, 2, 5, 5));
 
-        inputPanel.add(new JLabel("Угол (град):"));
-        angleField = new JTextField("45.0");
-        angleField.addActionListener(e -> {
-            updateCurrentAngleSpeedFromScreen();
-            showMouseAngle = false; // Сбрасываем отображение угла мыши
-        });
-        inputPanel.add(angleField);
-
-        inputPanel.add(new JLabel("Скорость (speed):"));
-        speedField = new JTextField("10.0");
-        speedField.addActionListener(e -> updateCurrentAngleSpeedFromScreen());
-        inputPanel.add(speedField);
-
-        launchButton = new JButton("Запустить");
-        launchButton.addActionListener(e -> launchBird());
-        inputPanel.add(launchButton);
-
         JButton resetButton = new JButton("Сброс");
         resetButton.addActionListener(e -> resetSimulation());
         inputPanel.add(resetButton);
+
+        JButton settingsButton = new JButton("Настройки");
+        settingsButton.addActionListener(e -> openConfig());
+        inputPanel.add(settingsButton);
 
         inputPanel.add(new JLabel("наведение"));
         JToggleButton useMouseBtn = new JToggleButton("?Мышь");
@@ -92,7 +73,7 @@ public class MyPanel extends JPanel {
         playbackSlider.setBounds(50, 150, 400, 50);
         add(playbackSlider);
         playbackSlider.addChangeListener(e -> {
-            if(paused) {
+            if (paused) {
                 bird.resetToTime(playbackSlider.getValue() / (double) 100 * maxTime);
             }
         });
@@ -132,34 +113,20 @@ public class MyPanel extends JPanel {
     private void launchBird() {
         if (bird.isLaunched || bird.hitBoundary) return;
 
-        bird.launch(startSpeed, startAngle);
+        bird.launch(mainConfig);
         showMouseAngle = false;
         paused = false;
     }
 
-    private void updateAngleSpeedFieldsFromCurrent() {
-        angleField.setText(String.format(Locale.ENGLISH, "%.1f", startAngle));
-        speedField.setText(String.format(Locale.ENGLISH, "%.1f", startSpeed));
-        bird.velocity0.x = startSpeed * Math.cos(Math.toRadians(startAngle));
-        bird.velocity0.y = startSpeed * Math.sin(Math.toRadians(startAngle));
-    }
-
-    private void updateCurrentAngleSpeedFromScreen() {
-        try {
-            startAngle = Double.parseDouble(angleField.getText());
-            startSpeed = Double.parseDouble(speedField.getText());
-            repaint();
-        } catch (NumberFormatException e) {
-            updateAngleSpeedFieldsFromCurrent();
-            repaint();
-        }
+    private void openConfig() {
+        PhyConfigDialog dialog = new PhyConfigDialog(null, mainConfig);
+        dialog.setVisible(true);
     }
 
     private void resetSimulation() {
         bird.reset();
         showMouseAngle = false;
         paused = false;
-        updateAngleSpeedFieldsFromCurrent();
         repaint();
     }
 
@@ -189,17 +156,21 @@ public class MyPanel extends JPanel {
             maxTime = bird.currentTime;
         }
         playbackSlider.setVisible(paused);
-        launchButton.setEnabled(!paused && !bird.isLaunched && !bird.hitBoundary);
         grabFocus();
         updateInfo();
         repaint();
     }
 
     private void updateInfo() {
+        bird.velocity0.x = mainConfig.startSpeedMS() * Math.cos(Math.toRadians(mainConfig.launchAngleDeg));
+        bird.velocity0.y = mainConfig.startSpeedMS() * Math.sin(Math.toRadians(mainConfig.launchAngleDeg));
+
         infoLabel.setText(String.format(
                 """
                         <html>
                         Параметры:<br>
+                        Пуля: калибр=%.2fмм масса=%.2fг БК=%.3f<br>
+                        Энергия выстрела: %.1fДж<br>
                         Начальные: скорость=%.1fm/s, угол скорости=%.1f°<br>
                         Текущие: скорость=%.1fm/s, угол скорости=%.1f°<br>
                         Координаты: X=%.1fm Y=%.1fm<br>
@@ -207,8 +178,10 @@ public class MyPanel extends JPanel {
                         Макс.высота=%.1fm, Макс.дальность=%.1fm<br><br><br>
                         Время полета %.3fc<br>
                         </html>""",
-                startSpeed,
-                startAngle,
+                mainConfig.caliber, mainConfig.massG, mainConfig.ballisticCoef,
+                mainConfig.startEnergyJ,
+                mainConfig.startSpeedMS(),
+                mainConfig.launchAngleDeg,
                 bird.physics.getVelocity(),
                 bird.physics.getVelocityAngleDeg(),
                 bird.physics.position.x, bird.physics.position.y,
@@ -229,8 +202,11 @@ public class MyPanel extends JPanel {
 
         // Рисуем предварительную траекторию если птица не запущена и не врезалась
         if (!bird.isLaunched && !bird.hitBoundary) {
-            trajectory.clearHistory();
-            trajectory.predictAndDraw(g, startXm, startYm, startAngle, startSpeed);
+            trajectory.predictAndDraw(g, 0, mainConfig);
+        }
+
+        if (!bird.hitBoundary) {
+            trajectory.predictAndDraw(g, 1, mainConfig.withoutDrag());
         }
 
         if (bird.isLaunched && !bird.hitBoundary) {
@@ -275,8 +251,8 @@ public class MyPanel extends JPanel {
 
     // Метод для вычисления угла по координатам клика мыши
     private double calculateAngleFromClick(int mouseX, int mouseY) {
-        double dx = screenXtoXMeters(mouseX) - startXm;
-        double dy = screenYtoYMeters(mouseY) - startYm;
+        double dx = screenXtoXMeters(mouseX) - mainConfig.position0X;
+        double dy = screenYtoYMeters(mouseY) - mainConfig.position0Y;
 
         // Вычисляем угол в радианах с помощью Math.atan2
         // atan2 принимает (y, x) и возвращает угол от -PI до PI
@@ -304,10 +280,13 @@ public class MyPanel extends JPanel {
 
             int mouseX = e.getX();
             int mouseY = e.getY();
-            startAngle = calculateAngleFromClick(mouseX, mouseY);
-            startSpeed = Math.sqrt(Math.pow(screenYtoYMeters(mouseY) - startYm, 2) + Math.pow(screenXtoXMeters(mouseX) - startXm, 2)) / Math.sqrt(PHYSICS_HEIGHT * PHYSICS_HEIGHT + PHYSICS_WIDTH * PHYSICS_WIDTH) * 900;
+            double startAngle = calculateAngleFromClick(mouseX, mouseY);
+            double startSpeed = Math.sqrt(
+                    Math.pow(screenYtoYMeters(mouseY) - mainConfig.position0Y, 2) + Math.pow(screenXtoXMeters(mouseX) - mainConfig.position0X, 2))
+                    / Math.sqrt(PHYSICS_HEIGHT * PHYSICS_HEIGHT + PHYSICS_WIDTH * PHYSICS_WIDTH) * 900;
 
-            updateAngleSpeedFieldsFromCurrent();
+            mainConfig.launchAngleDeg = startAngle;
+            mainConfig.setEnergyFromSpeed(startSpeed);
             repaint();
         }
     }

@@ -9,13 +9,10 @@ public class Bird {
     private static final int BULLET_NOSE_LENGTH = 10;
     // Чтобы замедлить симуляции и было понятно как летит, а не когда по настоящему скорости
     public static double slowTimeBy = 1;
-    double startXMeters;
-    double startYMeters;
     double lastTimeSec = 0;
     boolean hitBoundary = false;
     boolean isLaunched = false;
-    double mass = 0.00343;
-    Physics physics = new Physics(mass);
+    Physics physics = new Physics();
     double currentTime = 0;
     double lastDumpTime = 0;
     Vector velocity0 = new Vector(1, 0);
@@ -23,9 +20,8 @@ public class Bird {
     private int x;
     private int y;
 
-    public Bird(double positionXMeters, double positionYMeters) {
-        this.startXMeters = positionXMeters;
-        this.startYMeters = positionYMeters;
+    public Bird(PhyConfig config) {
+        physics.config = config;
         reset();
     }
 
@@ -33,7 +29,7 @@ public class Bird {
         isLaunched = false;
         hitBoundary = false;
         history.clear();
-        physics.setup(startXMeters, startYMeters, 0, 0);
+        physics.setup(physics.config);
         updatePositionFromPhysics();
     }
 
@@ -73,13 +69,8 @@ public class Bird {
         }
     }
 
-    public void launch(double speed, double angle) {
-        double angleRad = Math.toRadians(angle);
-        // Рассчитываем компоненты скорости
-        double v0X = speed * Math.cos(angleRad);
-        double v0Y = speed * Math.sin(angleRad);
-
-        physics.setup(startXMeters, startYMeters, v0X, v0Y);
+    public void launch(PhyConfig config) {
+        physics.setup(config);
         updatePositionFromPhysics();
 
         isLaunched = true;
