@@ -2,7 +2,6 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.util.Hashtable;
-import java.util.Locale;
 
 public class MyPanel extends JPanel {
     public static final double PIXELS_IN_METER = 1;
@@ -17,6 +16,7 @@ public class MyPanel extends JPanel {
     public static final int PHYSICS_WIDTH = WIDTH_PIXELS - PADDING_PX;
     public static final double MAX_WIDTH_METERS = PHYSICS_WIDTH / PIXELS_IN_METER;
     private final JSlider playbackSlider;
+    private boolean isDrawingMagnifier = false;
 
     JLabel infoLabel;
 
@@ -32,6 +32,10 @@ public class MyPanel extends JPanel {
     PhyConfig mainConfig = new PhyConfig();
     Bird bird = new Bird(mainConfig);
 
+    // Добавленные поля для лупы
+    private MagnifyingGlass magnifyingGlass;
+    private boolean magnifierActive = false;
+
     public MyPanel() {
         setBackground(Color.CYAN);
         setLayout(null);
@@ -40,8 +44,8 @@ public class MyPanel extends JPanel {
         JPanel inputPanel = new JPanel();
 
         inputPanel.setBackground(new Color(240, 240, 240));
-        inputPanel.setBounds(100, 10, 350, 120);
-        inputPanel.setLayout(new GridLayout(4, 2, 5, 5));
+        inputPanel.setBounds(100, 10, 450, 150); // Увеличил ширину для новой кнопки
+        inputPanel.setLayout(new GridLayout(5, 2, 5, 5)); // Изменил на 5 строк
 
         JButton resetButton = new JButton("Сброс");
         resetButton.addActionListener(e -> resetSimulation());
@@ -66,6 +70,22 @@ public class MyPanel extends JPanel {
         });
         inputPanel.add(timeSlider);
 
+        // Добавленная кнопка для лупы
+        JButton magnifierButton = new JButton("Лупа (M)");
+        magnifierButton.addActionListener(e -> {
+            if (paused) {
+                magnifierActive = !magnifierActive;
+                magnifyingGlass.toggle();
+                repaint();
+            } else {
+                JOptionPane.showMessageDialog(this,
+                        "Лупа доступна только на паузе! Нажмите P для паузы.",
+                        "Информация",
+                        JOptionPane.INFORMATION_MESSAGE);
+            }
+        });
+        inputPanel.add(magnifierButton);
+
         inputPanel.setLayout(new GridLayout(0, 2));
         add(inputPanel);
 
@@ -81,8 +101,11 @@ public class MyPanel extends JPanel {
         // Панель информации
         infoLabel = new JLabel("");
         infoLabel.setVerticalAlignment(SwingConstants.TOP);
-        infoLabel.setBounds(450, 10, 600, 200);
+        infoLabel.setBounds(450, 350, 600, 200);
         add(infoLabel);
+
+        // Инициализация лупы
+        magnifyingGlass = new MagnifyingGlass(WIDTH_PIXELS, HEIGHT_PIXELS);
 
         KeyboardFocusManager.getCurrentKeyboardFocusManager()
                 .addKeyEventDispatcher(e -> {
@@ -99,6 +122,14 @@ public class MyPanel extends JPanel {
                         if (e.getKeyChar() == 's' && !bird.isLaunched) {
                             launchBird();
                         }
+                        // Добавленная обработка клавиши для лупы
+                        if (e.getKeyChar() == 'm' || e.getKeyChar() == 'л') {
+                            if (paused) {
+                                magnifierActive = !magnifierActive;
+                                magnifyingGlass.toggle();
+                                repaint();
+                            }
+                        }
                     }
                     return false;
                 });
@@ -107,12 +138,40 @@ public class MyPanel extends JPanel {
             @Override
             public void mouseMoved(MouseEvent e) {
                 onMouseMoved(e);
+                // Добавлено для лупы
+                if (magnifierActive && paused) {
+                    repaint();
+                }
+            }
+
+            @Override
+            public void mouseDragged(MouseEvent e) {
+                // Добавлено для лупы
+                if (magnifierActive && paused) {
+                    magnifyingGlass.drag(e.getX(), e.getY());
+                    repaint();
+                }
             }
         });
+
         addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
                 onMouseClicked(e);
+            }
+
+            @Override
+            public void mousePressed(MouseEvent e) {
+                // Добавлено для лупы
+                if (magnifierActive && paused) {
+                    magnifyingGlass.startDrag(e.getX(), e.getY());
+                }
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                // Добавлено для лупы
+                magnifyingGlass.stopDrag();
             }
         });
         setFocusable(true);
@@ -168,7 +227,6 @@ public class MyPanel extends JPanel {
             maxTime = bird.currentTime;
         }
         playbackSlider.setVisible(paused);
-//        grabFocus();
         updateInfo();
         repaint();
     }
@@ -242,6 +300,18 @@ public class MyPanel extends JPanel {
             g.setFont(new Font("Arial", Font.BOLD, 24));
             g.drawString("пауза", getWidth() / 2, getHeight() / 2);
         }
+        if (paused && magnifierActive && magnifyingGlass.isVisible() && !isDrawingMagnifier) {
+            isDrawingMagnifier = true;
+            Graphics2D g2d = (Graphics2D) g;
+            magnifyingGlass.draw(g2d, this);
+            isDrawingMagnifier = false;
+        }
+
+        // Отрисовка лупы поверх всего
+        if (paused && magnifierActive && magnifyingGlass.isVisible()) {
+            Graphics2D g2d = (Graphics2D) g;
+            magnifyingGlass.draw(g2d, this);
+        }
     }
 
     // Метод для вычисления угла по координатам клика мыши
@@ -292,5 +362,9 @@ public class MyPanel extends JPanel {
 
     public double screenYtoYMeters(int screenYpx) {
         return (PHYSICS_HEIGHT - screenYpx) / PIXELS_IN_METER;
+    }
+
+    public boolean isMagnifierActive() {
+        return false;
     }
 }
