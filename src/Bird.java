@@ -108,12 +108,7 @@ public class Bird {
 
     public void checkHitBoundary() {
         if (!this.isLaunched) return;
-
-        // проверка столкновений с землей или потолком
-        boolean hit = physics.position.y < 0 || physics.position.y > MyPanel.MAX_HEIGHT_METERS;
-        // Проверка столкновения с вертикальной границей экрана
-        hit |= physics.position.x < 0 || physics.position.x > MyPanel.MAX_WIDTH_METERS;
-
+        boolean hit = physics.position.y < 0 || physics.position.y > MyPanel.getStaticMaxHeightMeters();
         if (hit) {
             hitBoundary = true;
             isLaunched = false;

@@ -7,10 +7,11 @@ public class Main {
         MyPanel panel = new MyPanel();
 
         JFrame frame = new JFrame();
-        frame.setSize(MyPanel.WIDTH_PIXELS, MyPanel.HEIGHT_PIXELS);
+        frame.setSize(800, 600); // Initial size
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setTitle("Не простая модель");
         frame.add(panel);
+        frame.setResizable(true); // Enable resizing
         frame.setVisible(true);
     }
 }

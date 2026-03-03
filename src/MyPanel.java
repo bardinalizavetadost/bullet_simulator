@@ -2,21 +2,17 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.util.Hashtable;
+import java.util.Locale;
 
 public class MyPanel extends JPanel {
     public static final double PIXELS_IN_METER = 1;
     public static final double PIXELS_IN_METERPERSECOND = 1;
-
-    public static final int HEIGHT_PIXELS = 600;
-    public static final int WIDTH_PIXELS = 800;
-
     public static final int PADDING_PX = 30;
-    public static final int PHYSICS_HEIGHT = HEIGHT_PIXELS - 2 * PADDING_PX;
-    public static final double MAX_HEIGHT_METERS = PHYSICS_HEIGHT / PIXELS_IN_METER;
-    public static final int PHYSICS_WIDTH = WIDTH_PIXELS - PADDING_PX;
-    public static final double MAX_WIDTH_METERS = PHYSICS_WIDTH / PIXELS_IN_METER;
+    
+    private static MyPanel instance;
+    
     private final JSlider playbackSlider;
-    private boolean isDrawingMagnifier = false;
+    private JScrollBar horizontalScrollbar;
 
     JLabel infoLabel;
 
@@ -25,18 +21,19 @@ public class MyPanel extends JPanel {
     TrajectoryDrawer trajectory = new TrajectoryDrawer();
 
     boolean useMouse = true;
-
+    int lastHorizontalScroll = 0;
     boolean paused = false;
     double maxTime = 0;
+    
+    // Viewport scrolling
+    private double scrollOffsetX = 0; // Left edge of viewport in meters
+    private boolean autoScrollEnabled = true;
 
     PhyConfig mainConfig = new PhyConfig();
     Bird bird = new Bird(mainConfig);
 
-    // Добавленные поля для лупы
-    private MagnifyingGlass magnifyingGlass;
-    private boolean magnifierActive = false;
-
     public MyPanel() {
+        instance = this;
         setBackground(Color.CYAN);
         setLayout(null);
 
@@ -44,8 +41,8 @@ public class MyPanel extends JPanel {
         JPanel inputPanel = new JPanel();
 
         inputPanel.setBackground(new Color(240, 240, 240));
-        inputPanel.setBounds(100, 10, 450, 150); // Увеличил ширину для новой кнопки
-        inputPanel.setLayout(new GridLayout(5, 2, 5, 5)); // Изменил на 5 строк
+        inputPanel.setBounds(100, 10, 350, 120);
+        inputPanel.setLayout(new GridLayout(4, 2, 5, 5));
 
         JButton resetButton = new JButton("Сброс");
         resetButton.addActionListener(e -> resetSimulation());
@@ -61,6 +58,15 @@ public class MyPanel extends JPanel {
         useMouseBtn.addItemListener((e) -> useMouse = e.getStateChange() == ItemEvent.SELECTED);
         inputPanel.add(useMouseBtn);
 
+        inputPanel.add(new JLabel("авто-прокрутка"));
+        JToggleButton autoScrollBtn = new JToggleButton("Вкл");
+        autoScrollBtn.setSelected(autoScrollEnabled);
+        autoScrollBtn.addItemListener((e) -> {
+            autoScrollEnabled = e.getStateChange() == ItemEvent.SELECTED;
+            autoScrollBtn.setText(autoScrollEnabled ? "Вкл" : "Выкл");
+        });
+        inputPanel.add(autoScrollBtn);
+
         JLabel timeLabel = new JLabel("замедление времени x1");
         inputPanel.add(timeLabel);
         JSlider timeSlider = new JSlider(JSlider.HORIZONTAL, 1, 10, (int) Bird.slowTimeBy);
@@ -69,22 +75,6 @@ public class MyPanel extends JPanel {
             timeLabel.setText("замедление времени x%d".formatted((int) Bird.slowTimeBy));
         });
         inputPanel.add(timeSlider);
-
-        // Добавленная кнопка для лупы
-        JButton magnifierButton = new JButton("Лупа (M)");
-        magnifierButton.addActionListener(e -> {
-            if (paused) {
-                magnifierActive = !magnifierActive;
-                magnifyingGlass.toggle();
-                repaint();
-            } else {
-                JOptionPane.showMessageDialog(this,
-                        "Лупа доступна только на паузе! Нажмите P для паузы.",
-                        "Информация",
-                        JOptionPane.INFORMATION_MESSAGE);
-            }
-        });
-        inputPanel.add(magnifierButton);
 
         inputPanel.setLayout(new GridLayout(0, 2));
         add(inputPanel);
@@ -101,11 +91,21 @@ public class MyPanel extends JPanel {
         // Панель информации
         infoLabel = new JLabel("");
         infoLabel.setVerticalAlignment(SwingConstants.TOP);
-        infoLabel.setBounds(450, 350, 600, 200);
+        infoLabel.setBounds(450, 10, 600, 200);
         add(infoLabel);
-
-        // Инициализация лупы
-        magnifyingGlass = new MagnifyingGlass(WIDTH_PIXELS, HEIGHT_PIXELS);
+        
+        horizontalScrollbar = new JScrollBar(JScrollBar.HORIZONTAL);
+        horizontalScrollbar.setVisible(true);
+        horizontalScrollbar.setValues(0, 100, 0, 1000); // initial values
+        horizontalScrollbar.addAdjustmentListener(e -> {
+            if (e.getValue() != lastHorizontalScroll) {
+//                autoScrollEnabled = false;
+                lastHorizontalScroll = e.getValue();
+            }
+            scrollOffsetX = e.getValue() / PIXELS_IN_METER;
+            repaint();
+        });
+        add(horizontalScrollbar);
 
         KeyboardFocusManager.getCurrentKeyboardFocusManager()
                 .addKeyEventDispatcher(e -> {
@@ -122,14 +122,6 @@ public class MyPanel extends JPanel {
                         if (e.getKeyChar() == 's' && !bird.isLaunched) {
                             launchBird();
                         }
-                        // Добавленная обработка клавиши для лупы
-                        if (e.getKeyChar() == 'm' || e.getKeyChar() == 'л') {
-                            if (paused) {
-                                magnifierActive = !magnifierActive;
-                                magnifyingGlass.toggle();
-                                repaint();
-                            }
-                        }
                     }
                     return false;
                 });
@@ -138,47 +130,62 @@ public class MyPanel extends JPanel {
             @Override
             public void mouseMoved(MouseEvent e) {
                 onMouseMoved(e);
-                // Добавлено для лупы
-                if (magnifierActive && paused) {
-                    repaint();
-                }
-            }
-
-            @Override
-            public void mouseDragged(MouseEvent e) {
-                // Добавлено для лупы
-                if (magnifierActive && paused) {
-                    magnifyingGlass.drag(e.getX(), e.getY());
-                    repaint();
-                }
             }
         });
-
         addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
                 onMouseClicked(e);
             }
-
-            @Override
-            public void mousePressed(MouseEvent e) {
-                // Добавлено для лупы
-                if (magnifierActive && paused) {
-                    magnifyingGlass.startDrag(e.getX(), e.getY());
-                }
-            }
-
-            @Override
-            public void mouseReleased(MouseEvent e) {
-                // Добавлено для лупы
-                magnifyingGlass.stopDrag();
-            }
         });
         setFocusable(true);
+
+        // Add ComponentListener to handle resize events
+        addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentResized(ComponentEvent e) {
+                repositionUIElements();
+            }
+        });
 
         // Таймер для обновления физики
         Timer timer = new Timer(10, e -> updateSimulation());
         timer.start();
+    }
+    
+    private void repositionUIElements() {
+        // Get current panel dimensions
+        int width = getWidth();
+        int height = getHeight();
+        int physicsHeight = getPhysicsHeight();
+        
+        // Reposition input panel (keep it in top-left area, but scale proportionally)
+        Component[] components = getComponents();
+        for (Component comp : components) {
+            if (comp instanceof JPanel && comp.getBackground().equals(new Color(240, 240, 240))) {
+                // Input panel - keep near top-left
+                comp.setBounds(Math.min(100, width / 8), 10, 350, 120);
+            } else if (comp == infoLabel) {
+                // Info label - position it on the right side
+                int labelWidth = Math.min(600, width - 470);
+                comp.setBounds(Math.max(450, width / 2 + 50), 10, labelWidth, 200);
+            } else if (comp == playbackSlider) {
+                // Playback slider - center it horizontally
+                int sliderWidth = Math.min(400, width - 100);
+                comp.setBounds(50, 150, sliderWidth, 50);
+            } else if (comp == horizontalScrollbar) {
+                // Position scrollbar at bottom, just below the physics area
+                int scrollbarHeight = 16;
+                int scrollbarY = physicsHeight + PADDING_PX;
+                horizontalScrollbar.setBounds(PADDING_PX, scrollbarY, getPhysicsWidth(), scrollbarHeight);
+                
+                // Update visible amount
+                int visibleAmount = getPhysicsWidth();
+                horizontalScrollbar.setVisibleAmount(visibleAmount);
+            }
+        }
+        
+        repaint();
     }
 
     private void launchBird() {
@@ -187,6 +194,7 @@ public class MyPanel extends JPanel {
         bird.launch(mainConfig);
         showMouseAngle = false;
         paused = false;
+//        autoScrollEnabled = true; // Re-enable auto-scroll on launch
     }
 
     private void openConfig() {
@@ -198,6 +206,12 @@ public class MyPanel extends JPanel {
         bird.reset();
         showMouseAngle = false;
         paused = false;
+        scrollOffsetX = 0; // Reset scroll position
+//        autoScrollEnabled = true; // Re-enable auto-scroll
+        if (horizontalScrollbar != null) {
+            horizontalScrollbar.setValue(0);
+            horizontalScrollbar.setMaximum(1000);
+        }
         repaint();
     }
 
@@ -225,10 +239,63 @@ public class MyPanel extends JPanel {
         if (!paused) {
             bird.update();
             maxTime = bird.currentTime;
+            
+            // Auto-scroll logic: continuously keep bullet in view
+            if (bird.isLaunched && !bird.hitBoundary && autoScrollEnabled) {
+                double viewportWidth = getMaxWidthMeters();
+                double birdX = bird.physics.position.x;
+                
+                // Keep bullet centered when it moves beyond 50% of viewport
+                if (birdX > scrollOffsetX + viewportWidth * 0.5) {
+                    scrollOffsetX = birdX - viewportWidth * 0.5;
+                    scrollOffsetX = Math.max(0, scrollOffsetX);
+                }
+            }
+            
+            // Always update scrollbar to extend maximum as bullet travels
+            if (bird.isLaunched) {
+                updateHorizontalScrollbar();
+            }
+        } else {
+            // In pause mode, scroll to keep bird visible
+            if (bird.isLaunched) {
+                scrollToKeepBirdVisible();
+            }
         }
         playbackSlider.setVisible(paused);
+//        grabFocus();
         updateInfo();
         repaint();
+    }
+    
+    private void scrollToKeepBirdVisible() {
+        double viewportWidth = getMaxWidthMeters();
+        double birdX = bird.physics.position.x;
+        
+        // If bird is outside visible area, scroll to it
+        if (birdX < scrollOffsetX) {
+            scrollOffsetX = Math.max(0, birdX - viewportWidth * 0.2);
+            updateHorizontalScrollbar();
+        } else if (birdX > scrollOffsetX + viewportWidth) {
+            scrollOffsetX = birdX - viewportWidth * 0.8;
+            updateHorizontalScrollbar();
+        }
+    }
+    
+    private void updateHorizontalScrollbar() {
+        if (horizontalScrollbar != null) {
+            int scrollValuePx = (int) (scrollOffsetX * PIXELS_IN_METER);
+            
+            // Update scrollbar maximum with margin ahead of bullet
+            double viewportWidth = getMaxWidthMeters();
+            double margin = viewportWidth * 2; // Add 2 viewports ahead as margin
+            double maxDistance = bird.physics.position.x + margin;
+            int maxScrollPx = (int) (maxDistance * PIXELS_IN_METER);
+            
+            // Set scrollbar values (value, visible amount, min, max)
+            int visibleAmountPx = (int) (viewportWidth * PIXELS_IN_METER);
+            horizontalScrollbar.setValues(scrollValuePx, visibleAmountPx, 0, maxScrollPx + visibleAmountPx);
+        }
     }
 
     private void updateInfo() {
@@ -300,18 +367,6 @@ public class MyPanel extends JPanel {
             g.setFont(new Font("Arial", Font.BOLD, 24));
             g.drawString("пауза", getWidth() / 2, getHeight() / 2);
         }
-        if (paused && magnifierActive && magnifyingGlass.isVisible() && !isDrawingMagnifier) {
-            isDrawingMagnifier = true;
-            Graphics2D g2d = (Graphics2D) g;
-            magnifyingGlass.draw(g2d, this);
-            isDrawingMagnifier = false;
-        }
-
-        // Отрисовка лупы поверх всего
-        if (paused && magnifierActive && magnifyingGlass.isVisible()) {
-            Graphics2D g2d = (Graphics2D) g;
-            magnifyingGlass.draw(g2d, this);
-        }
     }
 
     // Метод для вычисления угла по координатам клика мыши
@@ -348,7 +403,7 @@ public class MyPanel extends JPanel {
             double startAngle = calculateAngleFromClick(mouseX, mouseY);
             double startSpeed = Math.sqrt(
                     Math.pow(screenYtoYMeters(mouseY) - mainConfig.position0Y, 2) + Math.pow(screenXtoXMeters(mouseX) - mainConfig.position0X, 2))
-                    / Math.sqrt(PHYSICS_HEIGHT * PHYSICS_HEIGHT + PHYSICS_WIDTH * PHYSICS_WIDTH) * 900;
+                    / Math.sqrt(getPhysicsHeight() * getPhysicsHeight() + getPhysicsWidth() * getPhysicsWidth()) * 900;
 
             mainConfig.launchAngleDeg = startAngle;
             mainConfig.setEnergyFromSpeed(startSpeed);
@@ -357,14 +412,57 @@ public class MyPanel extends JPanel {
     }
 
     public double screenXtoXMeters(int screenXpx) {
-        return (screenXpx - PADDING_PX) / PIXELS_IN_METER;
+        return ((screenXpx - PADDING_PX) / PIXELS_IN_METER) + scrollOffsetX;
     }
 
     public double screenYtoYMeters(int screenYpx) {
-        return (PHYSICS_HEIGHT - screenYpx) / PIXELS_IN_METER;
+        return (getPhysicsHeight() - screenYpx) / PIXELS_IN_METER;
     }
-
-    public boolean isMagnifierActive() {
-        return false;
+    
+    // Scroll offset getter
+    public double getScrollOffsetX() {
+        return scrollOffsetX;
+    }
+    
+    public static double getStaticScrollOffsetX() {
+        return instance != null ? instance.getScrollOffsetX() : 0;
+    }
+    
+    // Dynamic dimension getters
+    public int getPhysicsHeight() {
+        return getHeight() - 2 * PADDING_PX;
+    }
+    
+    public int getPhysicsWidth() {
+        return getWidth() - PADDING_PX;
+    }
+    
+    public double getMaxHeightMeters() {
+        return getPhysicsHeight() / PIXELS_IN_METER;
+    }
+    
+    public double getMaxWidthMeters() {
+        return getPhysicsWidth() / PIXELS_IN_METER;
+    }
+    
+    // Static accessors for other classes
+    public static MyPanel getInstance() {
+        return instance;
+    }
+    
+    public static int getStaticPhysicsHeight() {
+        return instance != null ? instance.getPhysicsHeight() : 540;
+    }
+    
+    public static int getStaticPhysicsWidth() {
+        return instance != null ? instance.getPhysicsWidth() : 770;
+    }
+    
+    public static double getStaticMaxHeightMeters() {
+        return instance != null ? instance.getMaxHeightMeters() : 540;
+    }
+    
+    public static double getStaticMaxWidthMeters() {
+        return instance != null ? instance.getMaxWidthMeters() : 770;
     }
 }

@@ -17,18 +17,20 @@ public class Ruller {
     private static final String LABEL_Y = "(м.)";
 
     public static void paintRulerV(Graphics g) {
+        int physicsHeight = MyPanel.getStaticPhysicsHeight();
+        
         g.setColor(RULER_BG);
-        g.fillRect(0, 0, MyPanel.PADDING_PX, MyPanel.PHYSICS_HEIGHT);
+        g.fillRect(0, 0, MyPanel.PADDING_PX, physicsHeight);
         g.setColor(RULER_EDGE);
-        g.drawLine(MyPanel.PADDING_PX, 0, MyPanel.PADDING_PX, MyPanel.PHYSICS_HEIGHT);
+        g.drawLine(MyPanel.PADDING_PX, 0, MyPanel.PADDING_PX, physicsHeight);
 
         g.setFont(TICK_FONT);
         FontMetrics fm = g.getFontMetrics();
 
-        int tickCount = (int) (MyPanel.PHYSICS_HEIGHT / PX_PER_TICK) + 1;
+        int tickCount = (int) (physicsHeight / PX_PER_TICK) + 1;
 
         for (int i = 0; i <= tickCount; i++) {
-            int yPos = MyPanel.PHYSICS_HEIGHT - (int)(i * PX_PER_TICK);
+            int yPos = physicsHeight - (int)(i * PX_PER_TICK);
 
             if (yPos < 0) continue;
 
@@ -54,40 +56,48 @@ public class Ruller {
     }
 
     public static void paintRulerH(Graphics g) {
+        int physicsHeight = MyPanel.getStaticPhysicsHeight();
+        int physicsWidth = MyPanel.getStaticPhysicsWidth();
+        MyPanel panel = MyPanel.getInstance();
+        int widthPixels = panel != null ? panel.getWidth() : 800;
+        double scrollOffsetX = MyPanel.getStaticScrollOffsetX();
+        
         g.setColor(RULER_BG);
-        g.fillRect(MyPanel.PADDING_PX, MyPanel.PHYSICS_HEIGHT, MyPanel.PHYSICS_WIDTH, MyPanel.PADDING_PX);
+        g.fillRect(MyPanel.PADDING_PX, physicsHeight, physicsWidth, MyPanel.PADDING_PX);
         g.setColor(RULER_EDGE);
-        g.drawLine(MyPanel.PADDING_PX, MyPanel.PHYSICS_HEIGHT, MyPanel.WIDTH_PIXELS, MyPanel.PHYSICS_HEIGHT);
+        g.drawLine(MyPanel.PADDING_PX, physicsHeight, widthPixels, physicsHeight);
 
         g.setFont(TICK_FONT);
         FontMetrics fm = g.getFontMetrics();
 
-        int tickCount = (int) (MyPanel.PHYSICS_WIDTH / PX_PER_TICK) + 1;
+        // Calculate which ticks are visible in the current viewport
+        double startMeter = Math.floor(scrollOffsetX / M_PER_TICK) * M_PER_TICK;
+        double endMeter = scrollOffsetX + (physicsWidth / MyPanel.PIXELS_IN_METER);
+        
+        for (double meterValue = startMeter; meterValue <= endMeter; meterValue += M_PER_TICK) {
+            // Convert meter value to screen position
+            int xPos = (int)((meterValue - scrollOffsetX) * MyPanel.PIXELS_IN_METER) + MyPanel.PADDING_PX;
 
-        for (int i = 0; i <= tickCount; i++) {
-            int xPos = MyPanel.PADDING_PX + (int)(i * PX_PER_TICK);
-
-            if (xPos > MyPanel.WIDTH_PIXELS) continue;
+            if (xPos < MyPanel.PADDING_PX || xPos > widthPixels) continue;
 
             g.setColor(RULER_FG);
-            g.drawLine(xPos, MyPanel.PHYSICS_HEIGHT, xPos, MyPanel.PHYSICS_HEIGHT + TICK_LENGTH);
+            g.drawLine(xPos, physicsHeight, xPos, physicsHeight + TICK_LENGTH);
 
-            if (i < tickCount) {
-                int minorXPos = xPos + (int)(PX_PER_TICK / 2);
-                if (minorXPos < MyPanel.WIDTH_PIXELS) {
-                    g.drawLine(minorXPos, MyPanel.PHYSICS_HEIGHT, minorXPos,
-                            MyPanel.PHYSICS_HEIGHT + MINOR_TICK_LENGTH);
-                }
+            // Draw minor tick
+            int minorXPos = (int)((meterValue + M_PER_TICK / 2 - scrollOffsetX) * MyPanel.PIXELS_IN_METER) + MyPanel.PADDING_PX;
+            if (minorXPos >= MyPanel.PADDING_PX && minorXPos < widthPixels) {
+                g.drawLine(minorXPos, physicsHeight, minorXPos,
+                        physicsHeight + MINOR_TICK_LENGTH);
             }
 
-            double meterValue = i * M_PER_TICK;
+            // Draw label with actual meter value
             String label = String.format("%d", (int)meterValue);
             int labelWidth = fm.stringWidth(label);
             int labelX = xPos - labelWidth / 2;
-            int labelY = MyPanel.PHYSICS_HEIGHT + TICK_LENGTH + TEXT_OFFSET;
+            int labelY = physicsHeight + TICK_LENGTH + TEXT_OFFSET;
 
             g.drawString(label, labelX, labelY);
         }
-        g.drawString(LABEL_X, MyPanel.PHYSICS_WIDTH - 10, MyPanel.PHYSICS_HEIGHT + 20);
+        g.drawString(LABEL_X, physicsWidth - 10, physicsHeight + 20);
     }
 }
