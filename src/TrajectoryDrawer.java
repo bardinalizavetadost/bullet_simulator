@@ -7,16 +7,12 @@ public class TrajectoryDrawer {
     public TrajectoryDrawer() {
     }
 
-    public void predictAndDraw(Graphics g,
-                               int colorType,
-                               PhyConfig config) {
-
+    public ArrayList<Point> getPredictedTrajectory(PhyConfig config) {
         Bird demoBird = new Bird(config);
         demoBird.launch(config);
 
         double timeStepSec = 0.05;
         ArrayList<Point> points = new ArrayList<>();
-        ArrayList<Point> hits = new ArrayList<>();
 
         points.add(demoBird.physics.getPosition());
 
@@ -27,8 +23,15 @@ public class TrajectoryDrawer {
             Point pos = demoBird.physics.getPosition();
             points.add(pos);
         }
+        return points;
+    }
 
-        drawTrack(g, points, hits, colorType);
+    public void predictAndDraw(Graphics g,
+                               int colorType,
+                               PhyConfig config) {
+
+        ArrayList<Point> points = getPredictedTrajectory(config);
+        drawTrack(g, points, new ArrayList<>(), colorType);
     }
 
     public void drawHistory(Graphics g, Bird b) {

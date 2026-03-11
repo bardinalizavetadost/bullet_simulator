@@ -119,6 +119,12 @@ public class MyPanel extends JPanel {
                                 bird.dropFutureHistory();
                             }
                         }
+                        if (e.getKeyChar() == 'g' && paused) {
+                            java.util.List<Point> yDrag = trajectory.getPredictedTrajectory(mainConfig);
+                            java.util.List<Point> yNoDrag = trajectory.getPredictedTrajectory(mainConfig.withoutDrag());
+                            DeltaPlotDialog plotDialog = new DeltaPlotDialog(null, yDrag, yNoDrag);
+                            plotDialog.setVisible(true);
+                        }
                         if (e.getKeyChar() == 's' && !bird.isLaunched) {
                             launchBird();
                         }
