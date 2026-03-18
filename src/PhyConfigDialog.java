@@ -7,6 +7,8 @@ import java.awt.*;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.Locale;
+import java.util.Arrays;
+import java.util.Objects;
 
 public class PhyConfigDialog extends JDialog {
     private final PhyConfig config;
@@ -24,6 +26,12 @@ public class PhyConfigDialog extends JDialog {
 
     private JTextField airDensityField;
     private JTextField startSpeedField;
+    
+    private JComboBox<String> bulletConfigComboBox;
+    private boolean updatingFromSelection = false;
+    
+    // Store the last selected configuration for comparison
+    private PhyConfig.BulletConfig lastSelectedConfig = null;
 
     public PhyConfigDialog(JFrame parent, PhyConfig config) {
         super(parent, "Конфигурация физики", true);
@@ -34,6 +42,41 @@ public class PhyConfigDialog extends JDialog {
         initComponents();
         loadConfigValues();
         setLocationRelativeTo(parent);
+        
+        // Add action listener for bullet configuration combo box
+        bulletConfigComboBox.addActionListener(e -> {
+            if (updatingFromSelection) return;
+            
+            String selected = (String) bulletConfigComboBox.getSelectedItem();
+            if (selected == null || selected.equals("ручная настройка")) return;
+            
+            // Find the matching configuration
+            for (PhyConfig.BulletConfig bulletConfig : PhyConfig.BulletConfig.values()) {
+                if (bulletConfig.name.equals(selected)) {
+                    updatingFromSelection = true;
+                    
+                    // Update fields with the selected configuration
+                    massField.setText(df3.format(bulletConfig.massG));
+                    caliberField.setText(df2.format(bulletConfig.caliber));
+                    bcField.setText(df3.format(bulletConfig.ballisticCoef));
+                    energyField.setText(df2.format(bulletConfig.startEnergyJ));
+                    
+                    // Update the config object
+                    config.massG = bulletConfig.massG;
+                    config.caliber = bulletConfig.caliber;
+                    config.ballisticCoef = bulletConfig.ballisticCoef;
+                    config.startEnergyJ = bulletConfig.startEnergyJ;
+                    
+                    // Update calculated fields
+                    updateCalculatedFields();
+                    updatingFromSelection = false;
+                    
+                    // Store the last selected configuration
+                    lastSelectedConfig = bulletConfig;
+                    return;
+                }
+            }
+        });
     }
 
     private void initComponents() {
@@ -42,6 +85,22 @@ public class PhyConfigDialog extends JDialog {
         JPanel mainPanel = new JPanel();
         mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
         mainPanel.setBorder(new EmptyBorder(15, 15, 15, 15));
+        
+        // Create bullet configuration panel
+        JPanel configPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        configPanel.setBorder(BorderFactory.createTitledBorder("выбор пули"));
+        
+        bulletConfigComboBox = new JComboBox<>();
+        bulletConfigComboBox.addItem("ручная настройка");
+        for (PhyConfig.BulletConfig config : PhyConfig.BulletConfig.values()) {
+            bulletConfigComboBox.addItem(config.name);
+        }
+        
+        configPanel.add(new JLabel("преднастроенный вариант:"));
+        configPanel.add(bulletConfigComboBox);
+        
+        mainPanel.add(configPanel);
+        mainPanel.add(Box.createVerticalStrut(10));
 
         mainPanel.add(createProjectilePanel());
         mainPanel.add(Box.createVerticalStrut(10));
@@ -215,6 +274,17 @@ public class PhyConfigDialog extends JDialog {
         bcField.setText(df3.format(config.ballisticCoef));
         energyField.setText(df2.format(config.startEnergyJ));
         launchAngleField.setText(df2.format(config.launchAngleDeg));
+
+        // Set the appropriate item in the combo box based on current config
+        if (lastSelectedConfig != null && 
+            config.massG == lastSelectedConfig.massG &&
+            config.caliber == lastSelectedConfig.caliber &&
+            config.ballisticCoef == lastSelectedConfig.ballisticCoef &&
+            config.startEnergyJ == lastSelectedConfig.startEnergyJ) {
+            bulletConfigComboBox.setSelectedItem(lastSelectedConfig.name);
+        } else {
+            bulletConfigComboBox.setSelectedItem("ручная настройка");
+        }
 
         updateCalculatedFields();
     }

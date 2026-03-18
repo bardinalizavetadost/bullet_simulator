@@ -9,6 +9,29 @@ public class PhyConfig {
     double massG = 3.43;
     double caliber = 5.45;
 
+    // Predefined bullet configurations
+    public enum BulletConfig {
+        M7N10(3.43, 5.45, 0.185, 1700, "5.45x39mm M7N10"),
+        M43(7.9, 7.62, 0.295, 2100, "7.62x39mm M43"),
+        Luger(8.04, 9.0, 0.131, 520, "9x19mm Parabellum"),
+        M193(3.56, 5.56, 0.226, 1760, ".223 Remington M193"),
+        FMJ(9.53, 7.62, 0.410, 3300, ".308 Winchester FMJ");
+
+        public final double massG;
+        public final double caliber;
+        public final double ballisticCoef;
+        public final double startEnergyJ;
+        public final String name;
+
+        BulletConfig(double massG, double caliber, double ballisticCoef, double startEnergyJ, String name) {
+            this.massG = massG;
+            this.caliber = caliber;
+            this.ballisticCoef = ballisticCoef;
+            this.startEnergyJ = startEnergyJ;
+            this.name = name;
+        }
+    }
+
     public PhyConfig() {
     }
 
