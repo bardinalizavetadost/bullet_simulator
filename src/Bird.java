@@ -1,12 +1,39 @@
+import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.geom.Rectangle2D;
+import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 public class Bird {
-    static final int DIAMETER_PX = 30;
+    static final int DIAMETER_PX = 100;
     private static final int BULLET_BODY_WIDTH = 25;
     private static final int BULLET_BODY_HEIGHT = 15;
     private static final int BULLET_NOSE_LENGTH = 10;
+
+    private static final Map<String, BufferedImage> imageCache = new HashMap<>();
+
+    static {
+        preloadImages();
+    }
+
+    public static void preloadImages() {
+        for (PhyConfig.BulletConfig config : PhyConfig.BulletConfig.values()) {
+            String imageName = config.name();
+            try (InputStream is = Bird.class.getResourceAsStream("/" + imageName + ".png")) {
+                if (is != null) {
+                    BufferedImage img = ImageIO.read(is);
+                    imageCache.put(imageName, img);
+                }
+            } catch (IOException e) {
+                System.err.println("Could not load image: " + imageName);
+            }
+        }
+    }
+
     // Чтобы замедлить симуляции и было понятно как летит, а не когда по настоящему скорости
     public static double slowTimeBy = 1;
     double lastTimeSec = 0;
@@ -37,31 +64,49 @@ public class Bird {
         if (hitBoundary) return;
 
         Graphics2D g2d = (Graphics2D) g.create();
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+
         g2d.translate(x, y);
 
-        if (isLaunched) {
-            g2d.rotate(-physics.velocity.angleRad());
-        } else {
-            g2d.rotate(-velocity0.angleRad());
+        double angle = isLaunched ? -physics.velocity.angleRad() : -velocity0.angleRad();
+        g2d.rotate(angle);
+
+        BufferedImage currentBulletImage = null;
+        if (physics.config.selectedConfig != null) {
+            currentBulletImage = imageCache.get(physics.config.selectedConfig.name());
         }
 
-        Rectangle2D.Double body = new Rectangle2D.Double(
-                -BULLET_BODY_WIDTH,
-                -BULLET_BODY_HEIGHT / 2.0,
-                BULLET_BODY_WIDTH,
-                BULLET_BODY_HEIGHT
-        );
-        g2d.setColor(Color.DARK_GRAY);
-        g2d.fill(body);
-        g2d.setColor(Color.BLACK);
-        g2d.draw(body);
+        if (currentBulletImage != null) {
+            int iw = currentBulletImage.getWidth();
+            int ih = currentBulletImage.getHeight();
 
-        int[] noseX = {0, BULLET_NOSE_LENGTH, 0};
-        int[] noseY = {-BULLET_BODY_HEIGHT / 2, 0, BULLET_BODY_HEIGHT / 2};
+            // Scale to DIAMETER_PX width while maintaining aspect ratio
+            double scale = (double) DIAMETER_PX / iw;
+            int drawW = DIAMETER_PX;
+            int drawH = (int) (ih * scale);
 
-        g2d.setColor(Color.BLACK);
-        g2d.fillPolygon(noseX, noseY, 3);
-        g2d.drawPolygon(noseX, noseY, 3);
+            g2d.drawImage(currentBulletImage, -drawW / 2, -drawH / 2, drawW, drawH, null);
+        } else {
+            Rectangle2D.Double body = new Rectangle2D.Double(
+                    -BULLET_BODY_WIDTH,
+                    -BULLET_BODY_HEIGHT / 2.0,
+                    BULLET_BODY_WIDTH,
+                    BULLET_BODY_HEIGHT
+            );
+            g2d.setColor(Color.DARK_GRAY);
+            g2d.fill(body);
+            g2d.setColor(Color.BLACK);
+            g2d.draw(body);
+
+            int[] noseX = {0, BULLET_NOSE_LENGTH, 0};
+            int[] noseY = {-BULLET_BODY_HEIGHT / 2, 0, BULLET_BODY_HEIGHT / 2};
+
+            g2d.setColor(Color.BLACK);
+            g2d.fillPolygon(noseX, noseY, 3);
+            g2d.drawPolygon(noseX, noseY, 3);
+        }
+
         g2d.dispose();
 
         if (isLaunched) {
@@ -69,10 +114,13 @@ public class Bird {
         }
     }
 
-    public void launch(PhyConfig config) {
+    public void preLanuch(PhyConfig config) {
         physics.setup(config);
         updatePositionFromPhysics();
+    }
 
+    public void launch(PhyConfig config) {
+        preLanuch(config);
         isLaunched = true;
         hitBoundary = false;
 

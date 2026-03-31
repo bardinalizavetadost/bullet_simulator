@@ -63,7 +63,7 @@ public class Ruller {
         double scrollOffsetX = MyPanel.getStaticScrollOffsetX();
         
         g.setColor(RULER_BG);
-        g.fillRect(MyPanel.PADDING_PX, physicsHeight, physicsWidth, MyPanel.PADDING_PX);
+        g.fillRect(0, physicsHeight, physicsWidth + MyPanel.PADDING_PX, MyPanel.PADDING_PX);
         g.setColor(RULER_EDGE);
         g.drawLine(MyPanel.PADDING_PX, physicsHeight, widthPixels, physicsHeight);
 

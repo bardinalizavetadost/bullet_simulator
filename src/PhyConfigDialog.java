@@ -48,11 +48,15 @@ public class PhyConfigDialog extends JDialog {
             if (updatingFromSelection) return;
             
             String selected = (String) bulletConfigComboBox.getSelectedItem();
-            if (selected == null || selected.equals("ручная настройка")) return;
+            if (selected == null || selected.equals("ручная настройка")) {
+                config.selectedConfig = null;
+                return;
+            }
             
             // Find the matching configuration
             for (PhyConfig.BulletConfig bulletConfig : PhyConfig.BulletConfig.values()) {
                 if (bulletConfig.name.equals(selected)) {
+                    config.selectedConfig = bulletConfig;
                     updatingFromSelection = true;
                     
                     // Update fields with the selected configuration
@@ -95,7 +99,7 @@ public class PhyConfigDialog extends JDialog {
         for (PhyConfig.BulletConfig config : PhyConfig.BulletConfig.values()) {
             bulletConfigComboBox.addItem(config.name);
         }
-        
+
         configPanel.add(new JLabel("преднастроенный вариант:"));
         configPanel.add(bulletConfigComboBox);
         

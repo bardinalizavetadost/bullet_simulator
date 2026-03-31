@@ -1,4 +1,5 @@
 public class PhyConfig {
+    public BulletConfig selectedConfig = null;
     double position0X = 0, position0Y = 100;
     double launchAngleDeg = 45;
 

@@ -52,13 +52,16 @@ public class MyPanel extends JPanel {
         settingsButton.addActionListener(e -> openConfig());
         inputPanel.add(settingsButton);
 
-        inputPanel.add(new JLabel("наведение"));
-        JToggleButton useMouseBtn = new JToggleButton("?Мышь");
+        inputPanel.add(new JLabel("Наведение"));
+        JToggleButton useMouseBtn = new JToggleButton("Мышью");
         useMouseBtn.setSelected(useMouse);
-        useMouseBtn.addItemListener((e) -> useMouse = e.getStateChange() == ItemEvent.SELECTED);
+        useMouseBtn.addItemListener((e) -> {
+            useMouse = e.getStateChange() == ItemEvent.SELECTED;
+            useMouseBtn.setText(useMouse ? "Мышью" : "Параметрами");
+        });
         inputPanel.add(useMouseBtn);
 
-        inputPanel.add(new JLabel("авто-прокрутка"));
+        inputPanel.add(new JLabel("Авто-прокрутка"));
         JToggleButton autoScrollBtn = new JToggleButton("Вкл");
         autoScrollBtn.setSelected(autoScrollEnabled);
         autoScrollBtn.addItemListener((e) -> {
@@ -67,12 +70,12 @@ public class MyPanel extends JPanel {
         });
         inputPanel.add(autoScrollBtn);
 
-        JLabel timeLabel = new JLabel("замедление времени x1");
+        JLabel timeLabel = new JLabel("Замедление времени x1");
         inputPanel.add(timeLabel);
         JSlider timeSlider = new JSlider(JSlider.HORIZONTAL, 1, 10, (int) Bird.slowTimeBy);
         timeSlider.addChangeListener(e -> {
             Bird.slowTimeBy = timeSlider.getValue();
-            timeLabel.setText("замедление времени x%d".formatted((int) Bird.slowTimeBy));
+            timeLabel.setText("Замедление времени x%d".formatted((int) Bird.slowTimeBy));
         });
         inputPanel.add(timeSlider);
 
@@ -91,7 +94,7 @@ public class MyPanel extends JPanel {
         // Панель информации
         infoLabel = new JLabel("");
         infoLabel.setVerticalAlignment(SwingConstants.TOP);
-        infoLabel.setBounds(450, 10, 600, 200);
+        infoLabel.setBounds(450, 80, 650, 200);
         add(infoLabel);
         
         horizontalScrollbar = new JScrollBar(JScrollBar.HORIZONTAL);
@@ -157,6 +160,12 @@ public class MyPanel extends JPanel {
         // Таймер для обновления физики
         Timer timer = new Timer(10, e -> updateSimulation());
         timer.start();
+
+        Timer timerst = new Timer(100, e -> {
+            resetSimulation();
+        });
+        timerst.setRepeats(false);
+        timerst.start();
     }
     
     private void repositionUIElements() {
@@ -183,7 +192,7 @@ public class MyPanel extends JPanel {
                 // Position scrollbar at bottom, just below the physics area
                 int scrollbarHeight = 16;
                 int scrollbarY = physicsHeight + PADDING_PX;
-                horizontalScrollbar.setBounds(PADDING_PX, scrollbarY, getPhysicsWidth(), scrollbarHeight);
+                horizontalScrollbar.setBounds(0, scrollbarY, getPhysicsWidth() + PADDING_PX, scrollbarHeight);
                 
                 // Update visible amount
                 int visibleAmount = getPhysicsWidth();
@@ -219,6 +228,7 @@ public class MyPanel extends JPanel {
             horizontalScrollbar.setMaximum(1000);
         }
         repaint();
+        bird.preLanuch(mainConfig);
     }
 
     private void updateTimeSlider() {
