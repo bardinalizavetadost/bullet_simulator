@@ -1,3 +1,5 @@
+package liza;
+
 import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.geom.Rectangle2D;
@@ -288,7 +290,7 @@ public class Bird {
      */
     public void resetToTime(double time) {
         if (history.isEmpty()) return;
-        BirdState nearestState = history.getFirst();
+        BirdState nearestState = history.get(0);
         double best = Double.MAX_VALUE;
         for (BirdState state : history) {
             double dt = Math.abs(state.time() - time);

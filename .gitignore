@@ -2,3 +2,5 @@
 out/
 *.class
 *.jar
+build/
+.gradle/

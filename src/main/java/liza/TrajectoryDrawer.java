@@ -1,3 +1,5 @@
+package liza;
+
 import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -91,8 +93,8 @@ public class TrajectoryDrawer {
             g2d.setStroke(new BasicStroke(2, BasicStroke.CAP_BUTT, BasicStroke.JOIN_ROUND));
         }
 
-        int prevX = points.getFirst().toScreenX();
-        int prevY = points.getFirst().toScreenY();
+        int prevX = points.get(0).toScreenX();
+        int prevY = points.get(0).toScreenY();
         for (Point p : points) {
             int curY = p.toScreenY();
             int curX = p.toScreenX();

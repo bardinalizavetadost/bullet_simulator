@@ -1,3 +1,5 @@
+package liza;
+
 import java.util.HashMap;
 
 /**

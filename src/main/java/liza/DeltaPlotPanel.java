@@ -1,3 +1,5 @@
+package liza;
+
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
@@ -38,8 +40,8 @@ public class DeltaPlotPanel extends JPanel {
                     repaint();
                     return;
                 }
-                double minX = delta.getFirst().x;
-                double maxX = delta.getLast().x;
+                double minX = delta.get(0).x;
+                double maxX = delta.get(delta.size() - 1).x;
                 int padding = 50;
                 int chartWidth = getWidth() - 2 * padding;
 
@@ -82,8 +84,8 @@ public class DeltaPlotPanel extends JPanel {
             return;
         }
 
-        double minX = delta.getFirst().x;
-        double maxX = delta.getLast().x;
+        double minX = delta.get(0).x;
+        double maxX = delta.get(delta.size() - 1).x;
         double minY = Double.MAX_VALUE;
         double maxY = Double.MIN_VALUE;
         for (Point p : delta) {
