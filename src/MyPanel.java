@@ -2,36 +2,91 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.util.Hashtable;
-import java.util.Locale;
 
+/**
+ * Класс MyPanel представляет основную панель симулятора.
+ * Управляет пользовательским интерфейсом, визуализацией и симуляцией полета.
+ */
 public class MyPanel extends JPanel {
+    /**
+     * Масштаб: количество пикселей на метр
+     */
     public static final double PIXELS_IN_METER = 1;
+
+    /**
+     * Масштаб для векторов скорости
+     */
     public static final double PIXELS_IN_METERPERSECOND = 1;
+
+    /**
+     * Отступы от краев экрана в пикселях
+     */
     public static final int PADDING_PX = 30;
-    
+
+    /**
+     * Статический экземпляр панели для доступа из других классов
+     */
     private static MyPanel instance;
-    
+
+    /**
+     * Слайдер для управления временем воспроизведения
+     */
     private final JSlider playbackSlider;
-    private JScrollBar horizontalScrollbar;
-
+    /**
+     * Метка для отображения информации о симуляции
+     */
     JLabel infoLabel;
-
+    /**
+     * Флаг отображения угла мыши
+     */
     boolean showMouseAngle = false;
-
+    /**
+     * Рисовальщик траектории
+     */
     TrajectoryDrawer trajectory = new TrajectoryDrawer();
-
+    /**
+     * Флаг использования мыши для управления
+     */
     boolean useMouse = true;
+    /**
+     * Последняя позиция горизонтальной прокрутки
+     */
     int lastHorizontalScroll = 0;
+    /**
+     * Флаг паузы
+     */
     boolean paused = false;
+    /**
+     * Максимальное время полета
+     */
     double maxTime = 0;
-    
-    // Viewport scrolling
-    private double scrollOffsetX = 0; // Left edge of viewport in meters
+    /**
+     * Основная конфигурация физических параметров
+     */
+    PhyConfig mainConfig = new PhyConfig();
+    /**
+     * Объект птицы (пули)
+     */
+    Bird bird = new Bird(mainConfig);
+    /**
+     * Горизонтальная полоса прокрутки
+     */
+    private final JScrollBar horizontalScrollbar;
+    /**
+     * Смещение по оси X для прокрутки
+     */
+    private double scrollOffsetX = 0;
+    /**
+     * Флаг включения автоматической прокрутки
+     */
     private boolean autoScrollEnabled = true;
 
-    PhyConfig mainConfig = new PhyConfig();
-    Bird bird = new Bird(mainConfig);
+    TrajectoryTableDialog trajectoryTableDialog = null;
 
+    /**
+     * Конструктор класса MyPanel
+     * Инициализирует пользовательский интерфейс и компоненты
+     */
     public MyPanel() {
         instance = this;
         setBackground(Color.CYAN);
@@ -96,7 +151,7 @@ public class MyPanel extends JPanel {
         infoLabel.setVerticalAlignment(SwingConstants.TOP);
         infoLabel.setBounds(450, 80, 650, 200);
         add(infoLabel);
-        
+
         horizontalScrollbar = new JScrollBar(JScrollBar.HORIZONTAL);
         horizontalScrollbar.setVisible(true);
         horizontalScrollbar.setValues(0, 100, 0, 1000); // initial values
@@ -130,6 +185,12 @@ public class MyPanel extends JPanel {
                         }
                         if (e.getKeyChar() == 's' && !bird.isLaunched) {
                             launchBird();
+                        }
+                        if (e.getKeyChar() == 't') {
+                            if (trajectoryTableDialog == null) {
+                                trajectoryTableDialog = new TrajectoryTableDialog((JFrame) SwingUtilities.getWindowAncestor(MyPanel.this), bird.history, mainConfig);
+                            }
+                            trajectoryTableDialog.setVisible(!trajectoryTableDialog.isVisible());
                         }
                     }
                     return false;
@@ -167,13 +228,80 @@ public class MyPanel extends JPanel {
         timerst.setRepeats(false);
         timerst.start();
     }
-    
+
+    /**
+     * Статический метод для получения смещения прокрутки
+     *
+     * @return Смещение в метрах
+     */
+    public static double getStaticScrollOffsetX() {
+        return instance != null ? instance.getScrollOffsetX() : 0;
+    }
+
+    /**
+     * Получение экземпляра панели
+     *
+     * @return Экземпляр MyPanel
+     */
+    public static MyPanel getInstance() {
+        return instance;
+    }
+
+    /**
+     * Получение диалога таблицы траектории
+     *
+     * @return Диалог таблицы траектории
+     */
+    public TrajectoryTableDialog getTrajectoryTableDialog() {
+        return trajectoryTableDialog;
+    }
+
+    /**
+     * Статический метод для получения высоты физической области
+     *
+     * @return Высота в пикселях
+     */
+    public static int getStaticPhysicsHeight() {
+        return instance != null ? instance.getPhysicsHeight() : 540;
+    }
+
+    /**
+     * Статический метод для получения ширины физической области
+     *
+     * @return Ширина в пикселях
+     */
+    public static int getStaticPhysicsWidth() {
+        return instance != null ? instance.getPhysicsWidth() : 770;
+    }
+
+    /**
+     * Статический метод для получения максимальной высоты
+     *
+     * @return Максимальная высота в метрах
+     */
+    public static double getStaticMaxHeightMeters() {
+        return instance != null ? instance.getMaxHeightMeters() : 540;
+    }
+
+    /**
+     * Статический метод для получения максимальной ширины
+     *
+     * @return Максимальная ширина в метрах
+     */
+    public static double getStaticMaxWidthMeters() {
+        return instance != null ? instance.getMaxWidthMeters() : 770;
+    }
+
+    /**
+     * Перерасположение элементов пользовательского интерфейса
+     * Адаптирует расположение элементов при изменении размеров окна
+     */
     private void repositionUIElements() {
         // Get current panel dimensions
         int width = getWidth();
         int height = getHeight();
         int physicsHeight = getPhysicsHeight();
-        
+
         // Reposition input panel (keep it in top-left area, but scale proportionally)
         Component[] components = getComponents();
         for (Component comp : components) {
@@ -193,16 +321,20 @@ public class MyPanel extends JPanel {
                 int scrollbarHeight = 16;
                 int scrollbarY = physicsHeight + PADDING_PX;
                 horizontalScrollbar.setBounds(0, scrollbarY, getPhysicsWidth() + PADDING_PX, scrollbarHeight);
-                
+
                 // Update visible amount
                 int visibleAmount = getPhysicsWidth();
                 horizontalScrollbar.setVisibleAmount(visibleAmount);
             }
         }
-        
+
         repaint();
     }
 
+    /**
+     * Запуск птицы (пули)
+     * Инициирует полет с текущей конфигурацией
+     */
     private void launchBird() {
         if (bird.isLaunched || bird.hitBoundary) return;
 
@@ -212,11 +344,19 @@ public class MyPanel extends JPanel {
 //        autoScrollEnabled = true; // Re-enable auto-scroll on launch
     }
 
+    /**
+     * Открытие диалога настройки конфигурации
+     * Позволяет пользователю изменить параметры симуляции
+     */
     private void openConfig() {
         PhyConfigDialog dialog = new PhyConfigDialog(null, mainConfig);
         dialog.setVisible(true);
     }
 
+    /**
+     * Сброс симуляции
+     * Возвращает все параметры в начальное состояние
+     */
     private void resetSimulation() {
         bird.reset();
         showMouseAngle = false;
@@ -231,6 +371,10 @@ public class MyPanel extends JPanel {
         bird.preLanuch(mainConfig);
     }
 
+    /**
+     * Обновление слайдера времени
+     * Настройка меток и диапазона слайдера на основе максимального времени полета
+     */
     private void updateTimeSlider() {
         int steps = 20;
         int maxval = 100;
@@ -251,23 +395,27 @@ public class MyPanel extends JPanel {
         playbackSlider.setLabelTable(labelTable);
     }
 
+    /**
+     * Обновление симуляции
+     * Основной метод, вызываемый таймером для обновления состояния симуляции
+     */
     private void updateSimulation() {
         if (!paused) {
             bird.update();
             maxTime = bird.currentTime;
-            
+
             // Auto-scroll logic: continuously keep bullet in view
             if (bird.isLaunched && !bird.hitBoundary && autoScrollEnabled) {
                 double viewportWidth = getMaxWidthMeters();
                 double birdX = bird.physics.position.x;
-                
+
                 // Keep bullet centered when it moves beyond 50% of viewport
                 if (birdX > scrollOffsetX + viewportWidth * 0.5) {
                     scrollOffsetX = birdX - viewportWidth * 0.5;
                     scrollOffsetX = Math.max(0, scrollOffsetX);
                 }
             }
-            
+
             // Always update scrollbar to extend maximum as bullet travels
             if (bird.isLaunched) {
                 updateHorizontalScrollbar();
@@ -281,13 +429,23 @@ public class MyPanel extends JPanel {
         playbackSlider.setVisible(paused);
 //        grabFocus();
         updateInfo();
+        
+        // Update trajectory table if it exists
+        if (trajectoryTableDialog != null && trajectoryTableDialog.isVisible()) {
+            trajectoryTableDialog.updateTable();
+        }
+        
         repaint();
     }
-    
+
+    /**
+     * Прокрутка для отслеживания птицы
+     * Используется в режиме паузы для поддержания птицы в поле зрения
+     */
     private void scrollToKeepBirdVisible() {
         double viewportWidth = getMaxWidthMeters();
         double birdX = bird.physics.position.x;
-        
+
         // If bird is outside visible area, scroll to it
         if (birdX < scrollOffsetX) {
             scrollOffsetX = Math.max(0, birdX - viewportWidth * 0.2);
@@ -297,23 +455,31 @@ public class MyPanel extends JPanel {
             updateHorizontalScrollbar();
         }
     }
-    
+
+    /**
+     * Обновление горизонтальной полосы прокрутки
+     * Адаптирует диапазон прокрутки к текущему положению птицы
+     */
     private void updateHorizontalScrollbar() {
         if (horizontalScrollbar != null) {
             int scrollValuePx = (int) (scrollOffsetX * PIXELS_IN_METER);
-            
+
             // Update scrollbar maximum with margin ahead of bullet
             double viewportWidth = getMaxWidthMeters();
             double margin = viewportWidth * 2; // Add 2 viewports ahead as margin
             double maxDistance = bird.physics.position.x + margin;
             int maxScrollPx = (int) (maxDistance * PIXELS_IN_METER);
-            
+
             // Set scrollbar values (value, visible amount, min, max)
             int visibleAmountPx = (int) (viewportWidth * PIXELS_IN_METER);
             horizontalScrollbar.setValues(scrollValuePx, visibleAmountPx, 0, maxScrollPx + visibleAmountPx);
         }
     }
 
+    /**
+     * Обновление информации о симуляции
+     * Обновляет текстовую панель с текущими параметрами
+     */
     private void updateInfo() {
         bird.velocity0.x = mainConfig.startSpeedMS() * Math.cos(Math.toRadians(mainConfig.launchAngleDeg));
         bird.velocity0.y = mainConfig.startSpeedMS() * Math.sin(Math.toRadians(mainConfig.launchAngleDeg));
@@ -346,6 +512,12 @@ public class MyPanel extends JPanel {
         ));
     }
 
+    /**
+     * Метод отрисовки компонента
+     * Вызывается системой для отображения содержимого панели
+     *
+     * @param g Графический контекст для отрисовки
+     */
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
@@ -385,7 +557,13 @@ public class MyPanel extends JPanel {
         }
     }
 
-    // Метод для вычисления угла по координатам клика мыши
+    /**
+     * Вычисление угла запуска по координатам клика мыши
+     *
+     * @param mouseX Координата X клика мыши
+     * @param mouseY Координата Y клика мыши
+     * @return Угол в градусах
+     */
     private double calculateAngleFromClick(int mouseX, int mouseY) {
         double dx = screenXtoXMeters(mouseX) - mainConfig.position0X;
         double dy = screenYtoYMeters(mouseY) - mainConfig.position0Y;
@@ -403,13 +581,24 @@ public class MyPanel extends JPanel {
         return angleDeg;
     }
 
-    // Методы MouseListener
+    /**
+     * Обработчик клика мыши
+     * Запускает птицу при клике, если она не запущена
+     *
+     * @param e Событие клика мыши
+     */
     public void onMouseClicked(MouseEvent e) {
         if (!bird.isLaunched && !bird.hitBoundary && useMouse) {
             launchBird();
         }
     }
 
+    /**
+     * Обработчик движения мыши
+     * Обновляет параметры запуска на основе положения мыши
+     *
+     * @param e Событие движения мыши
+     */
     public void onMouseMoved(MouseEvent e) {
         if (!bird.isLaunched && !bird.hitBoundary && useMouse) {
             showMouseAngle = true;
@@ -427,58 +616,68 @@ public class MyPanel extends JPanel {
         }
     }
 
+    /**
+     * Преобразование экранных координат X в метрические
+     *
+     * @param screenXpx Координата X в пикселях
+     * @return Координата X в метрах
+     */
     public double screenXtoXMeters(int screenXpx) {
         return ((screenXpx - PADDING_PX) / PIXELS_IN_METER) + scrollOffsetX;
     }
 
+    /**
+     * Преобразование экранных координат Y в метрические
+     *
+     * @param screenYpx Координата Y в пикселях
+     * @return Координата Y в метрах
+     */
     public double screenYtoYMeters(int screenYpx) {
         return (getPhysicsHeight() - screenYpx) / PIXELS_IN_METER;
     }
-    
-    // Scroll offset getter
+
+    /**
+     * Получение смещения прокрутки по оси X
+     *
+     * @return Смещение в метрах
+     */
     public double getScrollOffsetX() {
         return scrollOffsetX;
     }
-    
-    public static double getStaticScrollOffsetX() {
-        return instance != null ? instance.getScrollOffsetX() : 0;
-    }
-    
-    // Dynamic dimension getters
+
+    /**
+     * Получение высоты физической области
+     *
+     * @return Высота в пикселях
+     */
     public int getPhysicsHeight() {
         return getHeight() - 2 * PADDING_PX;
     }
-    
+
+    /**
+     * Получение ширины физической области
+     *
+     * @return Ширина в пикселях
+     */
     public int getPhysicsWidth() {
         return getWidth() - PADDING_PX;
     }
-    
+
+    /**
+     * Получение максимальной высоты в метрах
+     *
+     * @return Максимальная высота
+     */
     public double getMaxHeightMeters() {
         return getPhysicsHeight() / PIXELS_IN_METER;
     }
-    
+
+    /**
+     * Получение максимальной ширины в метрах
+     *
+     * @return Максимальная ширина
+     */
     public double getMaxWidthMeters() {
         return getPhysicsWidth() / PIXELS_IN_METER;
-    }
-    
-    // Static accessors for other classes
-    public static MyPanel getInstance() {
-        return instance;
-    }
-    
-    public static int getStaticPhysicsHeight() {
-        return instance != null ? instance.getPhysicsHeight() : 540;
-    }
-    
-    public static int getStaticPhysicsWidth() {
-        return instance != null ? instance.getPhysicsWidth() : 770;
-    }
-    
-    public static double getStaticMaxHeightMeters() {
-        return instance != null ? instance.getMaxHeightMeters() : 540;
-    }
-    
-    public static double getStaticMaxWidthMeters() {
-        return instance != null ? instance.getMaxWidthMeters() : 770;
     }
 }

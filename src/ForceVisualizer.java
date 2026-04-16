@@ -2,22 +2,44 @@ import java.awt.*;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Класс ForceVisualizer отвечает за визуализацию векторов сил.
+ * Отображает силы тяжести, сопротивления воздуха и скорости.
+ */
 public class ForceVisualizer {
-
+    /**
+     * Цвета для различных векторов
+     */
     private static final Map<String, Color> FORCE_COLORS = Map.of(
             Physics.F_GRAVITY, Color.BLUE,
             Physics.F_DRAG, Color.RED,
             "speed", Color.BLACK
     );
 
+    /**
+     * Форматы отображения значений векторов
+     */
     private static final Map<String, String> FORCE_FMT = Map.of(
             Physics.F_GRAVITY, "%s=%.2fN",
             Physics.F_DRAG, "%s=%.6fN",
             "speed", "%s=%.0fm/s"
     );
 
+    /**
+     * Размер головки стрелки
+     */
     private static final int ARROW_HEAD_SIZE = 8;
 
+    /**
+     * Отрисовка векторов сил
+     * Визуализирует все действующие силы и скорость
+     *
+     * @param g       Графический контекст для отрисовки
+     * @param forces  Коллекция действующих сил
+     * @param speed   Вектор скорости
+     * @param originX Координата X начала векторов
+     * @param originY Координата Y начала векторов
+     */
     public static void drawForceVectors(Graphics g,
                                         HashMap<String, Vector> forces,
                                         Vector speed,
@@ -36,6 +58,16 @@ public class ForceVisualizer {
         drawVector(g2d, "speed", speed, originX, originY);
     }
 
+    /**
+     * Отрисовка отдельного вектора
+     * Визуализирует вектор с меткой и стрелкой
+     *
+     * @param g2d     Графический контекст для отрисовки
+     * @param label   Название вектора
+     * @param vector  Вектор для отрисовки
+     * @param originX Координата X начала вектора
+     * @param originY Координата Y начала вектора
+     */
     private static void drawVector(Graphics2D g2d,
                                    String label,
                                    Vector vector,
@@ -70,6 +102,17 @@ public class ForceVisualizer {
         g2d.drawString(displayLabel, labelX, labelY);
     }
 
+    /**
+     * Отрисовка головки стрелки
+     * Визуализирует треугольную головку стрелки
+     *
+     * @param g2d   Графический контекст для отрисовки
+     * @param x1    Координата X начала линии
+     * @param y1    Координата Y начала линии
+     * @param x2    Координата X конца линии
+     * @param y2    Координата Y конца линии
+     * @param color Цвет стрелки
+     */
     private static void drawArrowHead(Graphics2D g2d,
                                       int x1, int y1,
                                       int x2, int y2,

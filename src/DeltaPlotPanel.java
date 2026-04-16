@@ -1,4 +1,3 @@
-
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
@@ -15,6 +14,7 @@ public class DeltaPlotPanel extends JPanel {
 
     private double scrollX = 0;
     private double scaleY = 1.0;
+    private int hoveredIndex = -1;
 
     public DeltaPlotPanel(List<Point> yDrag, List<Point> yNoDrag) {
         this.yDrag = yDrag;
@@ -72,8 +72,6 @@ public class DeltaPlotPanel extends JPanel {
         return delta;
     }
 
-    private int hoveredIndex = -1;
-
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
@@ -109,7 +107,8 @@ public class DeltaPlotPanel extends JPanel {
 
         // Draw axis labels
         g2d.setColor(Color.BLACK);
-        g2d.drawString("X(m)", getWidth() / 2 - 30, getHeight() - padding + 30);
+        g2d.drawString("X(m)", getWidth() - 50, getHeight() - padding / 2);
+        g2d.drawString("delta Y(cm)", 10, padding); // TODO imp
 
         // Draw x-axis ticks and labels
         for (int i = 0; i < 10; i++) {
@@ -130,7 +129,7 @@ public class DeltaPlotPanel extends JPanel {
             if (logY >= logMinY && logY <= logMaxY) {
                 int yPos = (int) (getHeight() - padding - ((logY - logMinY) / (logMaxY - logMinY)) * chartHeight);
                 g2d.drawLine(padding - 5, yPos, padding, yPos);
-                g2d.drawString(String.format("%.2fcm", y * 1000), padding - 40, yPos + 5);
+                g2d.drawString(String.format("%.2f", y * 1000), padding - 40, yPos + 5);
             }
         }
 
@@ -161,7 +160,7 @@ public class DeltaPlotPanel extends JPanel {
 
 
             g2d.setColor(Color.BLACK);
-            g2d.drawOval(x-4, y-4, 8, 8);
+            g2d.drawOval(x - 4, y - 4, 8, 8);
             g2d.drawString(
                     String.format("x=%.2f", p.x),
                     x, y + 15
